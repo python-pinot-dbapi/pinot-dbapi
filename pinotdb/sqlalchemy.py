@@ -10,25 +10,44 @@ from six.moves.urllib import parse
 import requests
 from sqlalchemy.engine import default
 from sqlalchemy.sql import compiler
+from sqlalchemy.sql import elements
 from sqlalchemy import types
 
 import pinotdb
 from pinotdb import exceptions
-
-
-class UniversalSet(object):
-    def __contains__(self, item):
-        return True
-
-
-class PinotIdentifierPreparer(compiler.IdentifierPreparer):
-    reserved_words = UniversalSet()
+import logging
+logger = logging.getLogger(__name__)
 
 
 class PinotCompiler(compiler.SQLCompiler):
+    def visit_select(self, select, **kwargs):
+        # Pinot does not support orderby-limit for aggregating queries, replace that with
+        # top keyword. (The order by info is lost since the result is always ordered-desc by the group values)
+        has_metrics = getattr(select, '_num_metric_expressions', 0) > 0
+        if select._offset_clause:
+            raise exceptions.NotSupportedError('Offset clause is not supported in pinot')
+        top = None
+        if has_metrics:
+            logger.debug(f'Query {select} has metrics, so rewriting its order-by/limit clauses to just top')
+            top = 100
+            if select._limit_clause is not None:
+                if select._simple_int_limit:
+                    top = select._limit
+                else:
+                    raise exceptions.NotSupportedError('Only simple integral limits are supported in pinot')
+                select._limit_clause = None
+            select._order_by_clause = elements.ClauseList()
+        return super().visit_select(select, **kwargs) + \
+               (f'\nTOP {top}' if top is not None else '')
+
+
     def visit_column(self, column, result_map=None, **kwargs):
         # Pinot does not support table aliases
-        column.table.named_with_column = False
+        if column.table:
+            column.table.named_with_column = False
+        result_map = result_map or kwargs.pop('add_to_result_map', None)
+        # This is a hack to modify the original column, but how do I clone it ?
+        column.is_literal = True
         return super().visit_column(column, result_map, **kwargs)
 
 
@@ -82,7 +101,7 @@ class PinotDialect(default.DefaultDialect):
     name = 'pinot'
     scheme = 'http'
     driver = 'rest'
-    preparer = PinotIdentifierPreparer
+    preparer = compiler.IdentifierPreparer
     statement_compiler = PinotCompiler
     type_compiler = PinotTypeCompiler
     supports_alter = False
@@ -94,6 +113,7 @@ class PinotDialect(default.DefaultDialect):
     returns_unicode_strings = True
     description_encoding = None
     supports_native_boolean = True
+    supports_simple_order_by_label = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -114,13 +134,16 @@ class PinotDialect(default.DefaultDialect):
 
         # server for metadata calls
         self._server = url.query.get('server', 'http://localhost:9000/')
+        logger.info(f"Created connect args: {kwargs} and server is {self._server}, from url {url}")
 
         return ([], kwargs)
 
     def get_schema_names(self, connection, **kwargs):
         url = parse.urljoin(self._server, '/schemas')
         r = requests.get(url)
-        return r.json()
+        ret = r.json()
+        logger.info(f"Got schemas from {self._server}: {ret}")
+        return ret
 
     def has_table(self, connection, table_name, schema=None):
         return table_name in self.get_table_names(connection, schema)
@@ -129,6 +152,7 @@ class PinotDialect(default.DefaultDialect):
         url = parse.urljoin(self._server, '/tables')
         r = requests.get(url)
         payload = r.json()
+        logger.info(f"Got tables from {self._server}: {payload}")
         return payload['tables']
 
     def get_view_names(self, connection, schema=None, **kwargs):
@@ -142,16 +166,23 @@ class PinotDialect(default.DefaultDialect):
         r = requests.get(url)
         payload = r.json()
 
+        logger.info(f"Getting columns for {table_name} from {self._server}: {payload}")
+        specs = payload.get('dimensionFieldSpecs', []) + payload.get('metricFieldSpecs', [])
+
+        if "timeFieldSpec" in payload:
+            timeFieldSpec = payload["timeFieldSpec"]
+            specs.append(timeFieldSpec.get("outgoingGranularitySpec", timeFieldSpec["incomingGranularitySpec"]))
+
         columns = [
             {
                 'name': spec['name'],
                 'type': get_type(spec['dataType'], spec.get('fieldSize')),
                 'nullable': True,
-                'default': get_default(spec['defaultNullValue']),
+                'default': get_default(spec.get('defaultNullValue', 'null')),
             }
-            for spec in
-            payload['dimensionFieldSpecs'] + payload['metricFieldSpecs']
+            for spec in specs
         ]
+
         return columns
 
     def get_pk_constraint(self, connection, table_name, schema=None, **kwargs):
@@ -222,5 +253,10 @@ def get_type(data_type, field_size):
     type_map = {
         'string': types.String,
         'int': types.BigInteger,
+        'long': types.BigInteger,
+        'float': types.Float,
+        'double': types.Numeric,
+        'bytes': types.LargeBinary,
+        'boolean': types.Boolean
     }
     return type_map[data_type.lower()]
