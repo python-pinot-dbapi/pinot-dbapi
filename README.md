@@ -37,12 +37,3 @@ places = Table('places', MetaData(bind=engine), autoload=True)
 print(select([func.count('*')], from_obj=places).scalar())
 ```
 
-Using the REPL:
-
-```bash
-$ pinotdb --broker=http://localhost:8099/query --server=http://localhost:9000/
-> SELECT COUNT(*) AS cnt FROM places
-  cnt
------
-12345
-```
