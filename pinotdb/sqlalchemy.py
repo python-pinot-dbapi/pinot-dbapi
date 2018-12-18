@@ -48,6 +48,17 @@ class PinotCompiler(compiler.SQLCompiler):
         column.is_literal = True
         return super().visit_column(column, result_map, **kwargs)
 
+    def visit_label(self, label,
+                    add_to_result_map=None,
+                    within_label_clause=False,
+                    within_columns_clause=False,
+                    render_label_as_label=None,
+                    **kw):
+        if kw:
+            render_label_as_label = kw.pop('render_label_as_label', None)
+        render_label_as_label = None
+        return super().visit_label(label, add_to_result_map, within_label_clause, within_columns_clause, render_label_as_label, **kw)
+
 
 class PinotTypeCompiler(compiler.GenericTypeCompiler):
     def visit_REAL(self, type_, **kwargs):
