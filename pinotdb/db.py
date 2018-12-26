@@ -22,7 +22,7 @@ class Type(Enum):
     BOOLEAN = 3
 
 
-def connect(host='localhost', port=8099, path='/query', scheme='http'):
+def connect(*args, **kwargs):
     """
     Constructor for creating a connection to the database.
 
@@ -30,7 +30,7 @@ def connect(host='localhost', port=8099, path='/query', scheme='http'):
         >>> curs = conn.cursor()
 
     """
-    return Connection(host, port, path, scheme)
+    return Connection(*args, **kwargs)
 
 
 def check_closed(f):
@@ -101,16 +101,10 @@ class Connection(object):
 
     """Connection to a Pinot database."""
 
-    def __init__(
-        self,
-        host='localhost',
-        port=8099,
-        path='/query',
-        scheme='http',
-    ):
-        netloc = f'{host}:{port}'
-        self.url = parse.urlunparse(
-            (scheme, netloc, path, None, None, None))
+    def __init__(self, *args, **kwargs):
+        self._debug = kwargs.get('debug', False)
+        self._args = args
+        self._kwargs = kwargs
         self.closed = False
         self.cursors = []
 
@@ -136,7 +130,7 @@ class Connection(object):
     @check_closed
     def cursor(self):
         """Return a new Cursor Object using the connection."""
-        cursor = Cursor(self.url)
+        cursor = Cursor(*self._args, **self._kwargs)
         self.cursors.append(cursor)
 
         return cursor
@@ -154,11 +148,11 @@ class Connection(object):
 
 
 class Cursor(object):
-
     """Connection cursor."""
 
-    def __init__(self, url):
-        self.url = url
+    def __init__(self, host, port=8099, scheme='http', path='/query', extra_request_headers='', debug=False):
+        self.url = parse.urlunparse(
+            (scheme, f'{host}:{port}', path, None, None, None))
 
         # This read/write attribute specifies the number of rows to fetch at a
         # time with .fetchmany(). It defaults to 1 meaning to fetch a single
@@ -171,6 +165,13 @@ class Cursor(object):
         self.description = None
         self.rowcount = -1
         self._results = None
+        self._debug = debug
+        extra_headers = {}
+        if extra_request_headers:
+            for header in extra_request_headers.split(','):
+                k, v = header.split('=')
+                extra_headers[k] = v
+        self._extra_request_headers = extra_headers
 
     @check_closed
     def close(self):
@@ -183,8 +184,10 @@ class Cursor(object):
 
 
         headers = {'Content-Type': 'application/json'}
+        headers.update(self._extra_request_headers)
         payload = {'pql': query}
-        logger.debug(f'Submitting the pinot query to {self.url}:\n{query}\n{pformat(payload)}')
+        if self._debug:
+            logger.info(f'Submitting the pinot query to {self.url}:\n{query}\n{pformat(payload)}, with {headers}')
         r = requests.post(self.url, headers=headers, json=payload)
         if r.encoding is None:
             r.encoding = 'utf-8'
@@ -194,7 +197,8 @@ class Cursor(object):
         except Exception as e:
             raise exceptions.DatabaseError(f"Error when querying {query} from {self.url}, raw response is:\n{r.text}") from e
 
-        logger.debug(f'Got the payload of type {type(payload)} with the status code {0 if not r else r.status_code}:\n{payload}')
+        if self._debug:
+            logger.info(f'Got the payload of type {type(payload)} with the status code {0 if not r else r.status_code}:\n{payload}')
 
         num_servers_responded = payload.get('numServersResponded', -1)
         num_servers_queried = payload.get('numServersQueried', -1)

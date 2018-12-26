@@ -128,6 +128,16 @@ class PinotDialect(default.DefaultDialect):
         super().__init__(*args, **kwargs)
 
         self._server = None
+        self._debug = False
+        self.update_from_kwargs(kwargs)
+
+    def update_from_kwargs(self, givenkw):
+        kwargs = givenkw.copy() if givenkw else {}
+        if 'server' in kwargs:
+            self._server = kwargs.pop('server')
+        kwargs['debug'] = self._debug = bool(kwargs.get('debug', False))
+        logger.info(f"Updated pinot dialect args from {kwargs}: {self._server} and {self._debug}")
+        return kwargs
 
     @classmethod
     def dbapi(cls):
@@ -140,29 +150,31 @@ class PinotDialect(default.DefaultDialect):
             'path': url.database,
             'scheme': self.scheme,
         }
+        if url.query:
+            kwargs.update(url.query)
 
-        # server for metadata calls
-        self._server = url.query.get('server', 'http://localhost:9000/')
-        logger.info(f"Created connect args: {kwargs} and server is {self._server}, from url {url}")
-
+        kwargs = self.update_from_kwargs(kwargs)
         return ([], kwargs)
 
+    def get_metadata_from_controller(self, path):
+        url = parse.urljoin(self._server, path)
+        r = requests.get(url, headers={'Accept':'application/json'})
+        try:
+            result = r.json()
+        except ValueError as e:
+            raise exceptions.DatabaseError(f'Got invalid json response from {self._server}:{path}: {r.text}') from e
+        if self._debug:
+            logger.info(f"metadata get on {self._server}:{path} returned {result}")
+        return result
+
     def get_schema_names(self, connection, **kwargs):
-        url = parse.urljoin(self._server, '/schemas')
-        r = requests.get(url)
-        ret = r.json()
-        logger.info(f"Got schemas from {self._server}: {ret}")
-        return ret
+        return self.get_metadata_from_controller('/schemas')
 
     def has_table(self, connection, table_name, schema=None):
         return table_name in self.get_table_names(connection, schema)
 
     def get_table_names(self, connection, schema=None, **kwargs):
-        url = parse.urljoin(self._server, '/tables')
-        r = requests.get(url)
-        payload = r.json()
-        logger.info(f"Got tables from {self._server}: {payload}")
-        return payload['tables']
+        return self.get_metadata_from_controller('/tables')['tables']
 
     def get_view_names(self, connection, schema=None, **kwargs):
         return []
@@ -171,9 +183,7 @@ class PinotDialect(default.DefaultDialect):
         return {}
 
     def get_columns(self, connection, table_name, schema=None, **kwargs):
-        url = parse.urljoin(self._server, f'/tables/{table_name}/schema')
-        r = requests.get(url)
-        payload = r.json()
+        payload = self.get_metadata_from_controller(f'/tables/{table_name}/schema')
 
         logger.info(f"Getting columns for {table_name} from {self._server}: {payload}")
         specs = payload.get('dimensionFieldSpecs', []) + payload.get('metricFieldSpecs', [])
