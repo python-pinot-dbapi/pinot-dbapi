@@ -188,8 +188,8 @@ class PinotDialect(default.DefaultDialect):
         logger.info(f"Getting columns for {table_name} from {self._server}: {payload}")
         specs = payload.get('dimensionFieldSpecs', []) + payload.get('metricFieldSpecs', [])
 
-        if "timeFieldSpec" in payload:
-            timeFieldSpec = payload["timeFieldSpec"]
+        timeFieldSpec = payload.get('timeFieldSpec')
+        if timeFieldSpec:
             specs.append(timeFieldSpec.get("outgoingGranularitySpec", timeFieldSpec["incomingGranularitySpec"]))
 
         columns = [
