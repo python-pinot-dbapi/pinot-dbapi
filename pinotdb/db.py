@@ -1,17 +1,19 @@
-# -*- coding: future_fstrings -*-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from enum import Enum
 from six import string_types
 from six.moves.urllib import parse
+from pprint import pprint, pformat
 
 import requests
 
 from pinotdb import exceptions
+import logging
+logger = logging.getLogger(__name__)
 
 
 class Type(Enum):
@@ -20,7 +22,7 @@ class Type(Enum):
     BOOLEAN = 3
 
 
-def connect(host='localhost', port=8099, path='/query', scheme='http'):
+def connect(*args, **kwargs):
     """
     Constructor for creating a connection to the database.
 
@@ -28,7 +30,7 @@ def connect(host='localhost', port=8099, path='/query', scheme='http'):
         >>> curs = conn.cursor()
 
     """
-    return Connection(host, port, path, scheme)
+    return Connection(*args, **kwargs)
 
 
 def check_closed(f):
@@ -71,6 +73,18 @@ def get_description_from_row(row):
     ]
 
 
+def get_group_by_column_names(aggregation_results):
+    group_by_cols = []
+    for metric in aggregation_results:
+        metric_name = metric.get('function', 'noname')
+        gby_cols_for_metric = metric.get('groupByColumns', []) 
+        if group_by_cols and group_by_cols != gby_cols_for_metric:
+            raise exceptions.DatabaseError(f"Cols for metric {metric_name}: {gby_cols_for_metric} differ from other columns {group_by_cols}")
+        elif not group_by_cols:
+            group_by_cols = gby_cols_for_metric[:]
+    return group_by_cols
+
+
 def get_type(value):
     """Infer type from value."""
     if isinstance(value, string_types):
@@ -87,16 +101,10 @@ class Connection(object):
 
     """Connection to a Pinot database."""
 
-    def __init__(
-        self,
-        host='localhost',
-        port=8099,
-        path='/query',
-        scheme='http',
-    ):
-        netloc = f'{host}:{port}'
-        self.url = parse.urlunparse(
-            (scheme, netloc, path, None, None, None))
+    def __init__(self, *args, **kwargs):
+        self._debug = kwargs.get('debug', False)
+        self._args = args
+        self._kwargs = kwargs
         self.closed = False
         self.cursors = []
 
@@ -122,7 +130,7 @@ class Connection(object):
     @check_closed
     def cursor(self):
         """Return a new Cursor Object using the connection."""
-        cursor = Cursor(self.url)
+        cursor = Cursor(*self._args, **self._kwargs)
         self.cursors.append(cursor)
 
         return cursor
@@ -140,11 +148,11 @@ class Connection(object):
 
 
 class Cursor(object):
-
     """Connection cursor."""
 
-    def __init__(self, url):
-        self.url = url
+    def __init__(self, host, port=8099, scheme='http', path='/query', extra_request_headers='', debug=False):
+        self.url = parse.urlunparse(
+            (scheme, f'{host}:{port}', path, None, None, None))
 
         # This read/write attribute specifies the number of rows to fetch at a
         # time with .fetchmany(). It defaults to 1 meaning to fetch a single
@@ -157,6 +165,13 @@ class Cursor(object):
         self.description = None
         self.rowcount = -1
         self._results = None
+        self._debug = debug
+        extra_headers = {}
+        if extra_request_headers:
+            for header in extra_request_headers.split(','):
+                k, v = header.split('=')
+                extra_headers[k] = v
+        self._extra_request_headers = extra_headers
 
     @check_closed
     def close(self):
@@ -166,37 +181,89 @@ class Cursor(object):
     @check_closed
     def execute(self, operation, parameters=None):
         query = apply_parameters(operation, parameters or {})
-        print(query)
+
 
         headers = {'Content-Type': 'application/json'}
+        headers.update(self._extra_request_headers)
         payload = {'pql': query}
+        if self._debug:
+            logger.info(f'Submitting the pinot query to {self.url}:\n{query}\n{pformat(payload)}, with {headers}')
         r = requests.post(self.url, headers=headers, json=payload)
         if r.encoding is None:
             r.encoding = 'utf-8'
 
         try:
             payload = r.json()
-        except Exception:
-            payload = r.text
+        except Exception as e:
+            raise exceptions.DatabaseError(f"Error when querying {query} from {self.url}, raw response is:\n{r.text}") from e
+
+        if self._debug:
+            logger.info(f'Got the payload of type {type(payload)} with the status code {0 if not r else r.status_code}:\n{payload}')
+
+        num_servers_responded = payload.get('numServersResponded', -1)
+        num_servers_queried = payload.get('numServersQueried', -1)
+
+        if num_servers_queried > num_servers_responded or num_servers_responded == -1 or num_servers_queried == -1:
+            raise exceptions.DatabaseError(f"Query\n\n{query} timed out: Out of {num_servers_queried}, only"
+                                           f" {num_servers_responded} responded")
 
         # raise any error messages
         if r.status_code != 200:
-            msg = f"Query\n\n{query}\n\nreturned an error"
+            msg = f"Query\n\n{query}\n\nreturned an error: {r.status_code}\nFull response is {pformat(payload)}"
             raise exceptions.ProgrammingError(msg)
 
+        if payload.get('exceptions', []):
+            msg = '\n'.join(pformat(exception)
+                            for exception in payload['exceptions'])
+            raise exceptions.DatabaseError(msg)
+
         if 'aggregationResults' in payload:
-            results = payload['aggregationResults'][0]
-            if 'groupByResult' in results:
-                rows = []
-                for result in results['groupByResult']:
-                    row = {
-                        k: v for k, v in
-                        zip(results['groupByColumns'], result['group'])
-                    }
-                    row[results['function']] = result['value']
-                    rows.append(row)
-            else:
-                rows = [{results['function']: results['value']}]
+            aggregation_results = payload['aggregationResults']
+            gby_cols = get_group_by_column_names(aggregation_results)
+            metric_names = [agg_result['function'] for agg_result in aggregation_results]
+            gby_rows = OrderedDict() # Dict of group-by-vals to array of metrics  
+            total_group_vals_key = ()
+            num_metrics = len(metric_names)
+            for i, agg_result in enumerate(aggregation_results):
+                if 'groupByResult' in agg_result:
+                    if total_group_vals_key in gby_rows:
+                        raise exceptions.DatabaseError(f"Invalid response {pformat(aggregation_results)} since we have both total and group by results")
+                    for gb_result in agg_result['groupByResult']:
+                        group_values = gb_result['group']
+                        if len(group_values) < len(gby_cols):
+                            raise exceptions.DatabaseError(f"Expected {pformat(agg_result)} to contain {len(gby_cols)}, but got {len(group_values)}")
+                        elif len(group_values) > len(gby_cols):
+                            # This can happen because of poor escaping in the results
+                            extra = len(group_values) - len(gby_cols)
+                            new_group_values = group_values[extra:]
+                            new_group_values[0] = ''.join(group_values[0:extra]) + new_group_values[0]
+                            group_values = new_group_values
+
+                        group_values_key = tuple(group_values)
+                        if group_values_key not in gby_rows:
+                            gby_rows[group_values_key] = [None] * num_metrics
+                        gby_rows[group_values_key][i] = gb_result['value']
+                else: # Global aggregation result
+                    if total_group_vals_key not in gby_rows:
+                        gby_rows[total_group_vals_key] = [None] * num_metrics
+                    if len(gby_rows) != 1:
+                        raise exceptions.DatabaseError(f"Invalid response {pformat(aggregation_results)} since we have both total and group by results")
+                    if len(gby_cols) > 0:
+                        raise exceptions.DatabaseError(f"Invalid response since total aggregation results are present even when non zero gby_cols:{gby_cols}, {pformat(aggregation_results)}")
+                    gby_rows[total_group_vals_key][i] = agg_result['value']
+
+            rows = []
+            num_groups_and_metrics = len(gby_cols) + len(metric_names)
+            for group_vals, metric_vals in gby_rows.items():
+                if len(group_vals) != len(gby_cols):
+                    raise exceptions.DatabaseError(f"Expected {len(gby_cols)} but got {len(group_vals)} for a row")
+                if len(metric_vals) != len(metric_names):
+                    raise exceptions.DatabaseError(f"Expected {len(metric_names)} but got {len(metric_vals)} for a row")
+                row = dict(zip(gby_cols, group_vals))
+                row.update(zip(metric_names, metric_vals))
+                if len(row) != num_groups_and_metrics:
+                    raise exceptions.DatabaseError(f"Expected {num_groups_and_metrics} columns in the row but due to name collisions got less got only {len(row)}, full {pformat(row)}")
+                rows.append(row)
         elif 'selectionResults' in payload:
             results = payload['selectionResults']
             rows = [
@@ -204,10 +271,12 @@ class Cursor(object):
                 for result in results['results']
             ]
         else:
-            msg = '\n'.join(exception['message']
-                            for exception in payload['exceptions'])
-            raise exceptions.ProgrammingError(msg)
+            # empty result, no error
+            rows = []
 
+        logger.debug(f'Got the rows as a type {type(rows)} of size {len(rows)}')
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(pformat(rows))
         self.description = None
         self._results = []
         if rows:

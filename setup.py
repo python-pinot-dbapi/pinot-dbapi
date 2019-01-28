@@ -21,20 +21,12 @@ AUTHOR = 'Beto Dealmeida'
 REQUIRED = [
     'requests',
     'six',
-    'future-fstrings',
 ]
-if sys.version_info < (3, 4):
-    REQUIRED.append('enum')
+if sys.version_info < (3, 6):
+    sys.exit('Sorry, Python < 3.6 is not supported')
 
 sqlalchemy_extras = [
     'sqlalchemy',
-]
-
-cli_extras = [
-    'docopt',
-    'pygments',
-    'prompt_toolkit',
-    'tabulate',
 ]
 
 development_extras = [
@@ -106,9 +98,6 @@ setup(
     # py_modules=['mypackage'],
 
     entry_points={
-        'console_scripts': [
-            'pinotdb = pinotdb.console:main',
-        ],
         'sqlalchemy.dialects': [
             'pinot = pinotdb.sqlalchemy:PinotHTTPDialect',
             'pinot.http = pinotdb.sqlalchemy:PinotHTTPDialect',
@@ -119,7 +108,6 @@ setup(
     extras_require={
         'dev': development_extras,
         'sqlalchemy': sqlalchemy_extras,
-        'cli': cli_extras,
     },
     include_package_data=True,
     license='MIT',

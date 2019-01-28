@@ -1,5 +1,3 @@
-# -*- coding: future_fstrings -*-
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -10,26 +8,56 @@ from six.moves.urllib import parse
 import requests
 from sqlalchemy.engine import default
 from sqlalchemy.sql import compiler
+from sqlalchemy.sql import elements
 from sqlalchemy import types
 
 import pinotdb
 from pinotdb import exceptions
-
-
-class UniversalSet(object):
-    def __contains__(self, item):
-        return True
-
-
-class PinotIdentifierPreparer(compiler.IdentifierPreparer):
-    reserved_words = UniversalSet()
+import logging
+logger = logging.getLogger(__name__)
 
 
 class PinotCompiler(compiler.SQLCompiler):
+    def visit_select(self, select, **kwargs):
+        # Pinot does not support orderby-limit for aggregating queries, replace that with
+        # top keyword. (The order by info is lost since the result is always ordered-desc by the group values)
+        has_metrics = getattr(select, '_num_metric_expressions', 0) > 0
+        if select._offset_clause:
+            raise exceptions.NotSupportedError('Offset clause is not supported in pinot')
+        top = None
+        if has_metrics:
+            logger.debug(f'Query {select} has metrics, so rewriting its order-by/limit clauses to just top')
+            top = 100
+            if select._limit_clause is not None:
+                if select._simple_int_limit:
+                    top = select._limit
+                else:
+                    raise exceptions.NotSupportedError('Only simple integral limits are supported in pinot')
+                select._limit_clause = None
+            select._order_by_clause = elements.ClauseList()
+        return super().visit_select(select, **kwargs) + \
+               (f'\nTOP {top}' if top is not None else '')
+
+
     def visit_column(self, column, result_map=None, **kwargs):
         # Pinot does not support table aliases
-        column.table.named_with_column = False
+        if column.table:
+            column.table.named_with_column = False
+        result_map = result_map or kwargs.pop('add_to_result_map', None)
+        # This is a hack to modify the original column, but how do I clone it ?
+        column.is_literal = True
         return super().visit_column(column, result_map, **kwargs)
+
+    def visit_label(self, label,
+                    add_to_result_map=None,
+                    within_label_clause=False,
+                    within_columns_clause=False,
+                    render_label_as_label=None,
+                    **kw):
+        if kw:
+            render_label_as_label = kw.pop('render_label_as_label', None)
+        render_label_as_label = None
+        return super().visit_label(label, add_to_result_map, within_label_clause, within_columns_clause, render_label_as_label, **kw)
 
 
 class PinotTypeCompiler(compiler.GenericTypeCompiler):
@@ -82,7 +110,7 @@ class PinotDialect(default.DefaultDialect):
     name = 'pinot'
     scheme = 'http'
     driver = 'rest'
-    preparer = PinotIdentifierPreparer
+    preparer = compiler.IdentifierPreparer
     statement_compiler = PinotCompiler
     type_compiler = PinotTypeCompiler
     supports_alter = False
@@ -94,11 +122,22 @@ class PinotDialect(default.DefaultDialect):
     returns_unicode_strings = True
     description_encoding = None
     supports_native_boolean = True
+    supports_simple_order_by_label = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self._server = None
+        self._debug = False
+        self.update_from_kwargs(kwargs)
+
+    def update_from_kwargs(self, givenkw):
+        kwargs = givenkw.copy() if givenkw else {}
+        if 'server' in kwargs:
+            self._server = kwargs.pop('server')
+        kwargs['debug'] = self._debug = bool(kwargs.get('debug', False))
+        logger.info(f"Updated pinot dialect args from {kwargs}: {self._server} and {self._debug}")
+        return kwargs
 
     @classmethod
     def dbapi(cls):
@@ -111,25 +150,31 @@ class PinotDialect(default.DefaultDialect):
             'path': url.database,
             'scheme': self.scheme,
         }
+        if url.query:
+            kwargs.update(url.query)
 
-        # server for metadata calls
-        self._server = url.query.get('server', 'http://localhost:9000/')
-
+        kwargs = self.update_from_kwargs(kwargs)
         return ([], kwargs)
 
+    def get_metadata_from_controller(self, path):
+        url = parse.urljoin(self._server, path)
+        r = requests.get(url, headers={'Accept':'application/json'})
+        try:
+            result = r.json()
+        except ValueError as e:
+            raise exceptions.DatabaseError(f'Got invalid json response from {self._server}:{path}: {r.text}') from e
+        if self._debug:
+            logger.info(f"metadata get on {self._server}:{path} returned {result}")
+        return result
+
     def get_schema_names(self, connection, **kwargs):
-        url = parse.urljoin(self._server, '/schemas')
-        r = requests.get(url)
-        return r.json()
+        return self.get_metadata_from_controller('/schemas')
 
     def has_table(self, connection, table_name, schema=None):
         return table_name in self.get_table_names(connection, schema)
 
     def get_table_names(self, connection, schema=None, **kwargs):
-        url = parse.urljoin(self._server, '/tables')
-        r = requests.get(url)
-        payload = r.json()
-        return payload['tables']
+        return self.get_metadata_from_controller('/tables')['tables']
 
     def get_view_names(self, connection, schema=None, **kwargs):
         return []
@@ -138,20 +183,25 @@ class PinotDialect(default.DefaultDialect):
         return {}
 
     def get_columns(self, connection, table_name, schema=None, **kwargs):
-        url = parse.urljoin(self._server, f'/tables/{table_name}/schema')
-        r = requests.get(url)
-        payload = r.json()
+        payload = self.get_metadata_from_controller(f'/tables/{table_name}/schema')
+
+        logger.info(f"Getting columns for {table_name} from {self._server}: {payload}")
+        specs = payload.get('dimensionFieldSpecs', []) + payload.get('metricFieldSpecs', [])
+
+        timeFieldSpec = payload.get('timeFieldSpec')
+        if timeFieldSpec:
+            specs.append(timeFieldSpec.get("outgoingGranularitySpec", timeFieldSpec["incomingGranularitySpec"]))
 
         columns = [
             {
                 'name': spec['name'],
                 'type': get_type(spec['dataType'], spec.get('fieldSize')),
                 'nullable': True,
-                'default': get_default(spec['defaultNullValue']),
+                'default': get_default(spec.get('defaultNullValue', 'null')),
             }
-            for spec in
-            payload['dimensionFieldSpecs'] + payload['metricFieldSpecs']
+            for spec in specs
         ]
+
         return columns
 
     def get_pk_constraint(self, connection, table_name, schema=None, **kwargs):
@@ -222,5 +272,10 @@ def get_type(data_type, field_size):
     type_map = {
         'string': types.String,
         'int': types.BigInteger,
+        'long': types.BigInteger,
+        'float': types.Float,
+        'double': types.Numeric,
+        'bytes': types.LargeBinary,
+        'boolean': types.Boolean
     }
     return type_map[data_type.lower()]
