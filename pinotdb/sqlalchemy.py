@@ -19,13 +19,12 @@ logger = logging.getLogger(__name__)
 
 class PinotCompiler(compiler.SQLCompiler):
     def visit_select(self, select, **kwargs):
-        # Pinot does not support orderby-limit for aggregating queries, replace that with
-        # top keyword. (The order by info is lost since the result is always ordered-desc by the group values)
-        has_metrics = getattr(select, '_num_metric_expressions', 0) > 0
         if select._offset_clause:
             raise exceptions.NotSupportedError('Offset clause is not supported in pinot')
         top = None
-        if has_metrics:
+        # Pinot does not support orderby-limit for aggregating queries, replace that with
+        # top keyword. (The order by info is lost since the result is always ordered-desc by the group values)
+        if select._group_by_clause is not None:
             logger.debug(f'Query {select} has metrics, so rewriting its order-by/limit clauses to just top')
             top = 100
             if select._limit_clause is not None:
