@@ -7,7 +7,7 @@ from collections import namedtuple, OrderedDict
 from enum import Enum
 from six import string_types
 from six.moves.urllib import parse
-from pprint import pprint, pformat
+from pprint import pformat
 
 import requests
 
@@ -53,25 +53,53 @@ def check_result(f):
     return g
 
 
-def get_description_from_row(row):
-    """
-    Return description from a single row.
 
-    We only return the nameand  type (inferred from the data).
-    """
+def get_description_from_types(column_names, types):
     return [
         (
             name,               # name
-            get_type(value),    # type_code
+            type_code,          # type_code
             None,               # [display_size]
             None,               # [internal_size]
             None,               # [precision]
             None,               # [scale]
             None,               # [null_ok]
         )
-        for name, value in row.items()
+        for name, type_code in zip(column_names, types)
     ]
 
+def get_types_from_rows(column_names, rows):
+    """
+    Return description by scraping the rows
+
+    We only return the name and type (inferred from the data).
+    """
+    if not column_names:
+        return []
+    if not rows:
+        raise exceptions.InternalError(f'Cannot infer the column types from empty rows')
+    types = [None] * len(column_names)
+    remaining = len(column_names)
+    TypeCodeAndValue = namedtuple('TypeCodeAndValue', ['code', 'value'])
+    for row in rows:
+        if remaining <= 0:
+            break
+        if len(row) != len(column_names):
+            raise exceptions.DatabaseError(f'Column names {column_names} does not match row {row}')
+        for column_index, value in enumerate(row):
+            if value is not None:
+                current_type = types[column_index]
+                new_type = get_type(value)
+                if current_type is None:
+                    types[column_index] = TypeCodeAndValue(value=value, code=new_type)
+                    remaining -= 1
+                elif new_type is not current_type.code:
+                    raise exceptions.DatabaseError(
+                            f'Differing column type found for column {name}:'
+                            f'{current_type} vs {TypeCodeAndValue(code=new_type, value=value)}')
+    if any([t is None for t in types]):
+        raise exceptions.DatabaseError(f'Couldn\'t infer all the types {types}')
+    return [t.code for t in types]
 
 def get_group_by_column_names(aggregation_results):
     group_by_cols = []
@@ -217,6 +245,9 @@ class Cursor(object):
                             for exception in payload['exceptions'])
             raise exceptions.DatabaseError(msg)
 
+        rows = []  # array of array, where inner array is array of column values
+        column_names = [] # column names, such that len(column_names) == len(rows[0])
+
         if 'aggregationResults' in payload:
             aggregation_results = payload['aggregationResults']
             gby_cols = get_group_by_column_names(aggregation_results)
@@ -253,26 +284,21 @@ class Cursor(object):
                     gby_rows[total_group_vals_key][i] = agg_result['value']
 
             rows = []
-            num_groups_and_metrics = len(gby_cols) + len(metric_names)
+            column_names = gby_cols + metric_names
             for group_vals, metric_vals in gby_rows.items():
                 if len(group_vals) != len(gby_cols):
                     raise exceptions.DatabaseError(f"Expected {len(gby_cols)} but got {len(group_vals)} for a row")
                 if len(metric_vals) != len(metric_names):
                     raise exceptions.DatabaseError(f"Expected {len(metric_names)} but got {len(metric_vals)} for a row")
-                row = dict(zip(gby_cols, group_vals))
-                row.update(zip(metric_names, metric_vals))
-                if len(row) != num_groups_and_metrics:
-                    raise exceptions.DatabaseError(f"Expected {num_groups_and_metrics} columns in the row but due to name collisions got less got only {len(row)}, full {pformat(row)}")
-                rows.append(row)
+                rows.append(list(group_vals) + metric_vals)
         elif 'selectionResults' in payload:
             results = payload['selectionResults']
-            rows = [
-                {k: v for k, v in zip(results['columns'], result)}
-                for result in results['results']
-            ]
-        else:
-            # empty result, no error
-            rows = []
+            column_names = results.get('columns')
+            values = results.get('results')
+            if column_names and values:
+                rows = values
+            else:
+                raise exceptions.DatabaseError(f'Expected columns and results in selectionResults, but got {pformat(results)} instead')
 
         logger.debug(f'Got the rows as a type {type(rows)} of size {len(rows)}')
         if logger.isEnabledFor(logging.DEBUG):
@@ -280,9 +306,11 @@ class Cursor(object):
         self.description = None
         self._results = []
         if rows:
-            self.description = get_description_from_row(rows[0])
-            Row = namedtuple('Row', rows[0].keys(), rename=True)
-            self._results = [Row(*row.values()) for row in rows]
+            types = get_types_from_rows(column_names, rows)
+            if self._debug:
+                logger.info(f'There are {len(rows)} rows and types is {pformat(types)}, column_names are {pformat(column_names)}, first row is like {pformat(rows[0])}, and last row is like {pformat(rows[-1])}')
+            self._results = rows
+            self.description = get_description_from_types(column_names, types)
 
         return self
 
