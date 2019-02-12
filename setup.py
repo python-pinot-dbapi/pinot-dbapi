@@ -13,9 +13,9 @@ from setuptools import find_packages, setup, Command
 # Package meta-data.
 NAME = 'pinotdb'
 DESCRIPTION = 'Python DB-API and SQLAlchemy dialect for Pinot.'
-URL = 'https://github.com/betodealmeida/pinot-dbapi'
-EMAIL = 'beto@dealmeida.net'
-AUTHOR = 'Beto Dealmeida'
+URL = 'https://github.com/python-pinot-dbapi/pinot-dbapi'
+EMAIL = 'beto@dealmeida.net, devesh.agrawal@gmail.com'
+AUTHOR = 'Beto Dealmeida, Devesh Agrawal'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
