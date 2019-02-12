@@ -50,6 +50,13 @@ with open(os.path.join(here, NAME, '__version__.py')) as f:
     exec(f.read(), about)
 
 
+from setuptools import setup
+
+# read the contents of your README file
+this_directory = os.path.abspath(path.dirname(__file__))
+with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
+
 class UploadCommand(Command):
     """Support setup.py upload."""
 
@@ -90,6 +97,7 @@ setup(
     version=about['__version__'],
     description=DESCRIPTION,
     long_description=long_description,
+    long_description_content_type='text/markdown'
     author=AUTHOR,
     author_email=EMAIL,
     url=URL,
