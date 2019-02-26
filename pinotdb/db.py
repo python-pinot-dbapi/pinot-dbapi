@@ -9,6 +9,7 @@ from six import string_types
 from six.moves.urllib import parse
 from pprint import pformat
 
+import json
 import requests
 
 from pinotdb import exceptions
@@ -58,15 +59,19 @@ def get_description_from_types(column_names, types):
     return [
         (
             name,               # name
-            type_code,          # type_code
+            tc.code,            # type_code
             None,               # [display_size]
             None,               # [internal_size]
             None,               # [precision]
             None,               # [scale]
             None,               # [null_ok]
         )
-        for name, type_code in zip(column_names, types)
+        for name, tc in zip(column_names, types)
     ]
+
+
+TypeCodeAndValue = namedtuple('TypeCodeAndValue', ['code', 'value', 'coerce_to_string'])
+
 
 def get_types_from_rows(column_names, rows):
     """
@@ -80,7 +85,6 @@ def get_types_from_rows(column_names, rows):
         raise exceptions.InternalError(f'Cannot infer the column types from empty rows')
     types = [None] * len(column_names)
     remaining = len(column_names)
-    TypeCodeAndValue = namedtuple('TypeCodeAndValue', ['code', 'value'])
     for row in rows:
         if remaining <= 0:
             break
@@ -89,17 +93,17 @@ def get_types_from_rows(column_names, rows):
         for column_index, value in enumerate(row):
             if value is not None:
                 current_type = types[column_index]
-                new_type = get_type(value)
+                new_tc = get_type(value)
                 if current_type is None:
-                    types[column_index] = TypeCodeAndValue(value=value, code=new_type)
+                    types[column_index] = new_tc
                     remaining -= 1
                 elif new_type is not current_type.code:
                     raise exceptions.DatabaseError(
                             f'Differing column type found for column {name}:'
-                            f'{current_type} vs {TypeCodeAndValue(code=new_type, value=value)}')
+                            f'{current_type} vs {new_tc}')
     if any([t is None for t in types]):
         raise exceptions.DatabaseError(f'Couldn\'t infer all the types {types}')
-    return [t.code for t in types]
+    return types
 
 def get_group_by_column_names(aggregation_results):
     group_by_cols = []
@@ -113,14 +117,24 @@ def get_group_by_column_names(aggregation_results):
     return group_by_cols
 
 
+def is_iterable(value):
+    try:
+        _ = iter(value)
+        return True
+    except TypeError as te:
+        return False
+
+
 def get_type(value):
     """Infer type from value."""
     if isinstance(value, string_types):
-        return Type.STRING
+        return TypeCodeAndValue(Type.STRING, value, False)
     elif isinstance(value, (int, float)):
-        return Type.NUMBER
+        return TypeCodeAndValue(Type.NUMBER, value, False)
     elif isinstance(value, bool):
-        return Type.BOOLEAN
+        return TypeCodeAndValue(Type.BOOLEAN, value, False)
+    elif is_iterable(value):
+        return TypeCodeAndValue(Type.STRING, value, True)
 
     raise exceptions.Error(f'Value of unknown type: {value}')
 
@@ -175,10 +189,21 @@ class Connection(object):
         self.close()
 
 
+def convert_result_if_required(types, rows):
+    coercion_needed = any(t.coerce_to_string for t in types)
+    if not coercion_needed:
+        return rows
+    for i, t in enumerate(types):
+        if t.coerce_to_string:
+            for row in rows:
+                row[i] = json.dumps(row[i])
+    return rows
+
+
 class Cursor(object):
     """Connection cursor."""
 
-    def __init__(self, host, port=8099, scheme='http', path='/query', extra_request_headers='', debug=False):
+    def __init__(self, host, port=8099, scheme='http', path='/query', extra_request_headers='', debug=False, preserve_types=False, ignore_exception_error_codes=''):
         self.url = parse.urlunparse(
             (scheme, f'{host}:{port}', path, None, None, None))
 
@@ -194,6 +219,11 @@ class Cursor(object):
         self.rowcount = -1
         self._results = None
         self._debug = debug
+        self._preserve_types = preserve_types
+        if ignore_exception_error_codes:
+            self._ignore_exception_error_codes = set([int(x) for x in ignore_exception_error_codes.split(',')])
+        else:
+            self._ignore_exception_error_codes = []
         extra_headers = {}
         if extra_request_headers:
             for header in extra_request_headers.split(','):
@@ -206,13 +236,19 @@ class Cursor(object):
         """Close the cursor."""
         self.closed = True
 
+    def is_valid_exception(self, e):
+        if 'errorCode' not in e:
+            return True
+        else:
+            return e['errorCode'] not in self._ignore_exception_error_codes
+
     @check_closed
     def execute(self, operation, parameters=None):
         query = apply_parameters(operation, parameters or {})
-
-
         headers = {'Content-Type': 'application/json'}
         headers.update(self._extra_request_headers)
+        if self._preserve_types:
+            query += " OPTION(preserveType='true')"
         payload = {'pql': query}
         if self._debug:
             logger.info(f'Submitting the pinot query to {self.url}:\n{query}\n{pformat(payload)}, with {headers}')
@@ -240,9 +276,9 @@ class Cursor(object):
             msg = f"Query\n\n{query}\n\nreturned an error: {r.status_code}\nFull response is {pformat(payload)}"
             raise exceptions.ProgrammingError(msg)
 
-        if payload.get('exceptions', []):
-            msg = '\n'.join(pformat(exception)
-                            for exception in payload['exceptions'])
+        query_exceptions = [e for e in payload.get('exceptions', []) if self.is_valid_exception(e)]
+        if query_exceptions:
+            msg = '\n'.join(pformat(exception) for exception in query_exceptions)
             raise exceptions.DatabaseError(msg)
 
         rows = []  # array of array, where inner array is array of column values
@@ -309,7 +345,7 @@ class Cursor(object):
             types = get_types_from_rows(column_names, rows)
             if self._debug:
                 logger.info(f'There are {len(rows)} rows and types is {pformat(types)}, column_names are {pformat(column_names)}, first row is like {pformat(rows[0])}, and last row is like {pformat(rows[-1])}')
-            self._results = rows
+            self._results = convert_result_if_required(types, rows)
             self.description = get_description_from_types(column_names, types)
 
         return self
