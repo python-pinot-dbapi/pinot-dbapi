@@ -97,9 +97,9 @@ def get_types_from_rows(column_names, rows):
                 if current_type is None:
                     types[column_index] = new_tc
                     remaining -= 1
-                elif new_type is not current_type.code:
+                elif new_tc is not current_type.code:
                     raise exceptions.DatabaseError(
-                            f'Differing column type found for column {name}:'
+                            f'Differing column type found for column @{column_index} {column_names[column_index]}:'
                             f'{current_type} vs {new_tc}')
     if any([t is None for t in types]):
         raise exceptions.DatabaseError(f'Couldn\'t infer all the types {types}')
@@ -121,7 +121,7 @@ def is_iterable(value):
     try:
         _ = iter(value)
         return True
-    except TypeError as te:
+    except TypeError:
         return False
 
 
@@ -203,7 +203,7 @@ def convert_result_if_required(types, rows):
 class Cursor(object):
     """Connection cursor."""
 
-    def __init__(self, host, port=8099, scheme='http', path='/query', extra_request_headers='', debug=False, preserve_types=False, ignore_exception_error_codes=''):
+    def __init__(self, host, port=8099, scheme='http', path='/query', extra_request_headers='', debug=False, preserve_types=False, ignore_exception_error_codes='', acceptable_respond_fraction=-1):
         self.url = parse.urlunparse(
             (scheme, f'{host}:{port}', path, None, None, None))
 
@@ -220,6 +220,7 @@ class Cursor(object):
         self._results = None
         self._debug = debug
         self._preserve_types = preserve_types
+        self.acceptable_respond_fraction = acceptable_respond_fraction
         if ignore_exception_error_codes:
             self._ignore_exception_error_codes = set([int(x) for x in ignore_exception_error_codes.split(',')])
         else:
@@ -241,6 +242,23 @@ class Cursor(object):
             return True
         else:
             return e['errorCode'] not in self._ignore_exception_error_codes
+
+    def check_sufficient_responded(self, query, queried, responded):
+        fraction = self.acceptable_respond_fraction
+        if fraction == 0:
+            return
+        if queried < 0 or responded < 0:
+            responded = -1
+            needed = -1
+        elif fraction <= -1:
+            needed = queried
+        elif fraction > 0 and fraction < 1:
+            needed = int(fraction * queried)
+        else:
+            needed = fraction
+        if responded < 0 or responded < needed:
+            raise exceptions.DatabaseError(f"Query\n\n{query} timed out: Out of {queried}, only"
+                    f" {responded} responded, while needed was {needed}")
 
     @check_closed
     def execute(self, operation, parameters=None):
@@ -267,9 +285,7 @@ class Cursor(object):
         num_servers_responded = payload.get('numServersResponded', -1)
         num_servers_queried = payload.get('numServersQueried', -1)
 
-        if num_servers_queried > num_servers_responded or num_servers_responded == -1 or num_servers_queried == -1:
-            raise exceptions.DatabaseError(f"Query\n\n{query} timed out: Out of {num_servers_queried}, only"
-                                           f" {num_servers_responded} responded")
+        self.check_sufficient_responded(query, num_servers_queried, num_servers_responded)
 
         # raise any error messages
         if r.status_code != 200:
