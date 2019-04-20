@@ -97,7 +97,7 @@ def get_types_from_rows(column_names, rows):
                 if current_type is None:
                     types[column_index] = new_tc
                     remaining -= 1
-                elif new_tc is not current_type.code:
+                elif new_tc.code != current_type.code:
                     raise exceptions.DatabaseError(
                             f'Differing column type found for column @{column_index} {column_names[column_index]}:'
                             f'{current_type} vs {new_tc}')
