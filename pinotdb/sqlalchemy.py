@@ -21,21 +21,20 @@ class PinotCompiler(compiler.SQLCompiler):
     def visit_select(self, select, **kwargs):
         if select._offset_clause:
             raise exceptions.NotSupportedError('Offset clause is not supported in pinot')
-        top = None
-        # Pinot does not support orderby-limit for aggregating queries, replace that with
-        # top keyword. (The order by info is lost since the result is always ordered-desc by the group values)
+        limit = None
+        # The order by info is lost since the result is always ordered-desc by the group values
         if select._group_by_clause is not None:
-            logger.debug(f'Query {select} has metrics, so rewriting its order-by/limit clauses to just top')
-            top = 100
+            logger.debug(f'Query {select} has metrics, so rewriting its order-by/limit clauses to just limit')
+            limit = 100
             if select._limit_clause is not None:
                 if select._simple_int_limit:
-                    top = select._limit
+                    limit = select._limit
                 else:
                     raise exceptions.NotSupportedError('Only simple integral limits are supported in pinot')
                 select._limit_clause = None
             select._order_by_clause = elements.ClauseList()
         return super().visit_select(select, **kwargs) + \
-               (f'\nTOP {top}' if top is not None else '')
+               (f'\nLIMIT {limit}' if limit is not None else '')
 
 
     def visit_column(self, column, result_map=None, **kwargs):
