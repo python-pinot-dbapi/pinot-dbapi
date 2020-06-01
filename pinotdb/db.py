@@ -72,37 +72,13 @@ def get_description_from_types(column_names, types):
 
 TypeCodeAndValue = namedtuple('TypeCodeAndValue', ['code', 'value', 'coerce_to_string'])
 
-
-def get_types_from_rows(column_names, rows):
-    """
-    Return description by scraping the rows
-
-    We only return the name and type (inferred from the data).
-    """
-    if not column_names:
-        return []
-    if not rows:
-        raise exceptions.InternalError(f'Cannot infer the column types from empty rows')
-    types = [None] * len(column_names)
-    remaining = len(column_names)
-    for row in rows:
-        if remaining <= 0:
-            break
-        if len(row) != len(column_names):
-            raise exceptions.DatabaseError(f'Column names {column_names} does not match row {row}')
-        for column_index, value in enumerate(row):
-            if value is not None:
-                current_type = types[column_index]
-                new_tc = get_type(value)
-                if current_type is None:
-                    types[column_index] = new_tc
-                    remaining -= 1
-                elif new_tc.code != current_type.code:
-                    raise exceptions.DatabaseError(
-                            f'Differing column type found for column @{column_index} {column_names[column_index]}:'
-                            f'{current_type} vs {new_tc}')
-    if any([t is None for t in types]):
-        raise exceptions.DatabaseError(f'Couldn\'t infer all the types {types}')
+def get_types_from_column_data_types(column_data_types):
+    types = [None] * len(column_data_types)
+    for column_index, column_data_type in enumerate(column_data_types):
+        if column_data_type == "INT" or column_data_type == "LONG" or column_data_type == "FLOAT" or column_data_type == "DOUBLE":
+            types[column_index] = TypeCodeAndValue(Type.NUMBER, None, False)
+        else:
+            types[column_index] = TypeCodeAndValue(Type.STRING, None, True)
     return types
 
 def get_group_by_column_names(aggregation_results):
@@ -123,21 +99,6 @@ def is_iterable(value):
         return True
     except TypeError:
         return False
-
-
-def get_type(value):
-    """Infer type from value."""
-    if isinstance(value, string_types):
-        return TypeCodeAndValue(Type.STRING, value, False)
-    elif isinstance(value, (int, float)):
-        return TypeCodeAndValue(Type.NUMBER, value, False)
-    elif isinstance(value, bool):
-        return TypeCodeAndValue(Type.BOOLEAN, value, False)
-    elif is_iterable(value):
-        return TypeCodeAndValue(Type.STRING, value, True)
-
-    raise exceptions.Error(f'Value of unknown type: {value}')
-
 
 class Connection(object):
 
@@ -203,7 +164,9 @@ def convert_result_if_required(types, rows):
 class Cursor(object):
     """Connection cursor."""
 
-    def __init__(self, host, port=8099, scheme='http', path='/query', extra_request_headers='', debug=False, preserve_types=False, ignore_exception_error_codes='', acceptable_respond_fraction=-1):
+    def __init__(self, host, port=8099, scheme='http', path='/query/sql', extra_request_headers='', debug=False, preserve_types=False, ignore_exception_error_codes='', acceptable_respond_fraction=-1):
+        if path == "query":
+            path = "query/sql"
         self.url = parse.urlunparse(
             (scheme, f'{host}:{port}', path, None, None, None))
 
@@ -267,7 +230,7 @@ class Cursor(object):
         headers.update(self._extra_request_headers)
         if self._preserve_types:
             query += " OPTION(preserveType='true')"
-        payload = {'pql': query}
+        payload = {'sql': query}
         if self._debug:
             logger.info(f'Submitting the pinot query to {self.url}:\n{query}\n{pformat(payload)}, with {headers}')
         r = requests.post(self.url, headers=headers, json=payload)
@@ -299,71 +262,28 @@ class Cursor(object):
 
         rows = []  # array of array, where inner array is array of column values
         column_names = [] # column names, such that len(column_names) == len(rows[0])
-
-        if 'aggregationResults' in payload:
-            aggregation_results = payload['aggregationResults']
-            gby_cols = get_group_by_column_names(aggregation_results)
-            metric_names = [agg_result['function'] for agg_result in aggregation_results]
-            gby_rows = OrderedDict() # Dict of group-by-vals to array of metrics  
-            total_group_vals_key = ()
-            num_metrics = len(metric_names)
-            for i, agg_result in enumerate(aggregation_results):
-                if 'groupByResult' in agg_result:
-                    if total_group_vals_key in gby_rows:
-                        raise exceptions.DatabaseError(f"Invalid response {pformat(aggregation_results)} since we have both total and group by results")
-                    for gb_result in agg_result['groupByResult']:
-                        group_values = gb_result['group']
-                        if len(group_values) < len(gby_cols):
-                            raise exceptions.DatabaseError(f"Expected {pformat(agg_result)} to contain {len(gby_cols)}, but got {len(group_values)}")
-                        elif len(group_values) > len(gby_cols):
-                            # This can happen because of poor escaping in the results
-                            extra = len(group_values) - len(gby_cols)
-                            new_group_values = group_values[extra:]
-                            new_group_values[0] = ''.join(group_values[0:extra]) + new_group_values[0]
-                            group_values = new_group_values
-
-                        group_values_key = tuple(group_values)
-                        if group_values_key not in gby_rows:
-                            gby_rows[group_values_key] = [None] * num_metrics
-                        gby_rows[group_values_key][i] = gb_result['value']
-                else: # Global aggregation result
-                    if total_group_vals_key not in gby_rows:
-                        gby_rows[total_group_vals_key] = [None] * num_metrics
-                    if len(gby_rows) != 1:
-                        raise exceptions.DatabaseError(f"Invalid response {pformat(aggregation_results)} since we have both total and group by results")
-                    if len(gby_cols) > 0:
-                        raise exceptions.DatabaseError(f"Invalid response since total aggregation results are present even when non zero gby_cols:{gby_cols}, {pformat(aggregation_results)}")
-                    gby_rows[total_group_vals_key][i] = agg_result['value']
-
-            rows = []
-            column_names = gby_cols + metric_names
-            for group_vals, metric_vals in gby_rows.items():
-                if len(group_vals) != len(gby_cols):
-                    raise exceptions.DatabaseError(f"Expected {len(gby_cols)} but got {len(group_vals)} for a row")
-                if len(metric_vals) != len(metric_names):
-                    raise exceptions.DatabaseError(f"Expected {len(metric_names)} but got {len(metric_vals)} for a row")
-                rows.append(list(group_vals) + metric_vals)
-        elif 'selectionResults' in payload:
-            results = payload['selectionResults']
-            column_names = results.get('columns')
-            values = results.get('results')
+        column_data_types = [] # column data types 1:1 mapping to column_names
+        if 'resultTable' in payload:
+            results = payload['resultTable']
+            column_names = results.get('dataSchema').get('columnNames')
+            column_data_types = results.get('dataSchema').get('columnDataTypes')
+            values = results.get('rows')
             if column_names and values:
                 rows = values
             else:
-                raise exceptions.DatabaseError(f'Expected columns and results in selectionResults, but got {pformat(results)} instead')
+                raise exceptions.DatabaseError(f'Expected columns and results in resultTable, but got {pformat(results)} instead')
 
         logger.debug(f'Got the rows as a type {type(rows)} of size {len(rows)}')
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(pformat(rows))
         self.description = None
         self._results = []
-        if rows:
-            types = get_types_from_rows(column_names, rows)
+        if column_data_types:
+            types = get_types_from_column_data_types(column_data_types)
             if self._debug:
-                logger.info(f'There are {len(rows)} rows and types is {pformat(types)}, column_names are {pformat(column_names)}, first row is like {pformat(rows[0])}, and last row is like {pformat(rows[-1])}')
+                logger.info(f'Column_names are {pformat(column_names)}, Column_data_types are {pformat(column_data_types)}, Types are {pformat(types)}')
             self._results = convert_result_if_required(types, rows)
             self.description = get_description_from_types(column_names, types)
-
         return self
 
     @check_closed
