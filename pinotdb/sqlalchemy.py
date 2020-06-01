@@ -19,22 +19,7 @@ logger = logging.getLogger(__name__)
 
 class PinotCompiler(compiler.SQLCompiler):
     def visit_select(self, select, **kwargs):
-        if select._offset_clause:
-            raise exceptions.NotSupportedError('Offset clause is not supported in pinot')
-        limit = None
-        # The order by info is lost since the result is always ordered-desc by the group values
-        if select._group_by_clause is not None:
-            logger.debug(f'Query {select} has metrics, so rewriting its order-by/limit clauses to just limit')
-            limit = 100
-            if select._limit_clause is not None:
-                if select._simple_int_limit:
-                    limit = select._limit
-                else:
-                    raise exceptions.NotSupportedError('Only simple integral limits are supported in pinot')
-                select._limit_clause = None
-            select._order_by_clause = elements.ClauseList()
-        return super().visit_select(select, **kwargs) + \
-               (f'\nLIMIT {limit}' if limit is not None else '')
+        return super().visit_select(select, **kwargs)
 
 
     def visit_column(self, column, result_map=None, **kwargs):
@@ -184,7 +169,7 @@ class PinotDialect(default.DefaultDialect):
         payload = self.get_metadata_from_controller(f'/tables/{table_name}/schema')
 
         logger.info(f"Getting columns for {table_name} from {self._server}: {payload}")
-        specs = payload.get('dimensionFieldSpecs', []) + payload.get('metricFieldSpecs', [])
+        specs = payload.get('dimensionFieldSpecs', []) + payload.get('metricFieldSpecs', []) + payload.get('dateTimeFieldSpecs', [])
 
         timeFieldSpec = payload.get('timeFieldSpec')
         if timeFieldSpec:
