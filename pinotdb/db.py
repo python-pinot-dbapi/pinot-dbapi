@@ -77,6 +77,8 @@ def get_types_from_column_data_types(column_data_types):
     for column_index, column_data_type in enumerate(column_data_types):
         if column_data_type == "INT" or column_data_type == "LONG" or column_data_type == "FLOAT" or column_data_type == "DOUBLE":
             types[column_index] = TypeCodeAndValue(Type.NUMBER, None, False)
+        elif column_data_type == "STRING" :
+            types[column_index] = TypeCodeAndValue(Type.STRING, None, False)
         else:
             types[column_index] = TypeCodeAndValue(Type.STRING, None, True)
     return types

@@ -45,10 +45,10 @@ Start Pinot Batch Quickstart
 docker run --name pinot-quickstart -p 2123:2123 -p 9000:9000 -p 8000:8000 -d apachepinot/pinot:latest QuickStart -type batch
 ```
 
-Once pinot-quickstart is up, you can run below sample code snippet to query Pinot:
+Once pinot batch quickstart is up, you can run below sample code snippet to query Pinot:
 
 ```bash
-python3 examples/pinot-quickstart.py
+python3 examples/pinot-quickstart-batch.py
 ```
 
 Sample Output:
@@ -75,16 +75,53 @@ Sending SQL to Pinot: SELECT playerName,sum(runs) AS sum_runs FROM baseballStats
 ['"Alexander Emmanuel"', 1426.0]
 ```
 
-Below is a sql alchemy example:
+Start Pinot Hybrid Quickstart
 
 ```bash
-python3 examples/pinot-quickstart-sqlalchemy.py
+docker run --name pinot-quickstart -p 2123:2123 -p 9000:9000 -p 8000:8000 -d apachepinot/pinot:latest QuickStart -type hybrid
+```
+
+Below is an example against Pinot Quickstart Hybrid:
+
+```bash
+python3 examples/pinot-quickstart-hybrid.py
 ```
 
 ```bash
-Sending Count(*) SQL to Pinot
-97889
+Sending SQL to Pinot: SELECT * FROM airlineStats LIMIT 5
+[-2147483648, -2147483648, 19805, -2147483648, -2147483648, -2147483648, 2112, '1700-1759', -2147483648, 1700, 1445, 135, 'null', 0, 'AA', -2147483648, 3, 1, 16102, 0, -2, 0, 1443, '1400-1459', -1, 'MKE', 13342, 1334205, 33342, 'Milwaukee, WI', 'WI', 55, 'Wisconsin', 45, 853, 4, 389, '[13930]', 1, '[1393003]', '["ORD"]', 252, 0, '[27]', 1, '["N583AA"]', '[44]', '[2047]', '[1715]', 1, -2147483648, '2014-01-01', 214, 1, -2147483648, -2147483648, 1, -2147483648, 'DFW', 11298, 1129803, 30194, 'Dallas/Fort Worth, TX', 'TX', 48, 'Texas', 74, 1, '["SEA", "PSC", "PHX", "MSY", "ATL", "TYS", "DEN", "CHS", "PDX", "LAX", "EWR", "SFO", "PIT", "RDU", "RAP", "LSE", "SAN"]', -2147483648, 'N583AA', 6, 9, -2147483648, 'AA', -2147483648, 1452, 2106, 2014]
+[186, 165, 19805, 0, -13, 0, 1327, '1300-1359', -1, 1340, 1125, 195, 'null', 0, 'AA', -2147483648, 3, 1, 16102, 0, -4, 0, 1121, '1100-1159', -1, 'DFW', 11298, 1129803, 30194, 'Dallas/Fort Worth, TX', 'TX', 48, 'Texas', 74, 1121, 5, -2147483648, '[-2147483648]', 0, '[-2147483648]', '["null"]', -2147483648, -2147483648, '[-2147483648]', -2147483648, '["null"]', '[-2147483648]', '[-2147483648]', '[-2147483648]', 0, -2147483648, '2014-01-01', 969, 1, -2147483648, -2147483648, 1, -2147483648, 'MIA', 13303, 1330303, 32467, 'Miami, FL', 'FL', 12, 'Florida', 33, 1, '["null"]', -2147483648, 'N3JPAA', 6, 15, -2147483648, 'AA', -2147483648, 1136, 1321, 2014]
+[142, 126, 19805, 1, 41, 41, 2221, '2100-2159', 2, 2140, 1705, 155, 'null', 0, 'AA', 0, 3, 1, 16102, 1, 54, 54, 1759, '1700-1759', 3, 'DFW', 11298, 1129803, 30194, 'Dallas/Fort Worth, TX', 'TX', 48, 'Texas', 74, 1055, 5, -2147483648, '[-2147483648]', 0, '[-2147483648]', '["null"]', -2147483648, -2147483648, '[-2147483648]', -2147483648, '["null"]', '[-2147483648]', '[-2147483648]', '[-2147483648]', 0, -2147483648, '2014-01-01', 1482, 1, 41, -2147483648, 1, 0, 'LAS', 12889, 1288903, 32211, 'Las Vegas, NV', 'NV', 32, 'Nevada', 85, 1, '["null"]', 0, 'N466AA', 5, 11, -2147483648, 'AA', 0, 1810, 2216, 2014]
+[94, 56, 19805, 0, 5, 5, 1615, '1600-1659', 0, 1610, 1445, 85, 'null', 0, 'AA', -2147483648, 3, 1, 16102, 0, -4, 0, 1441, '1400-1459', -1, 'LAX', 12892, 1289203, 32575, 'Los Angeles, CA', 'CA', 6, 'California', 91, 337, 2, -2147483648, '[-2147483648]', 0, '[-2147483648]', '["null"]', -2147483648, -2147483648, '[-2147483648]', -2147483648, '["null"]', '[-2147483648]', '[-2147483648]', '[-2147483648]', 0, -2147483648, '2014-01-01', 2456, 1, -2147483648, -2147483648, 1, -2147483648, 'SFO', 14771, 1477101, 32457, 'San Francisco, CA', 'CA', 6, 'California', 91, 1, '["SEA", "PSC", "PHX", "MSY", "ATL", "TYS", "DEN", "CHS", "PDX", "LAX", "EWR", "SFO", "PIT", "RDU", "RAP", "LSE", "SAN", "SBN", "IAH", "OAK", "BRO", "JFK", "SAT", "ORD", "ACY", "DFW", "BWI", "TPA", "BFL", "BOS", "SNA", "ISN", "RIC", "HLN", "FAR", "GRB", "FLL", "LAS", "LGA", "BNA", "SJC", "OGG", "BUR", "EUG", "MRY", "JAX", "CLT", "SDF", "IAD", "MCI", "HOU", "ABI", "SJU", "MSN", "PHL", "DAY", "MIA", "HSV"]', -2147483648, 'N3FLAA', 14, 24, -2147483648, 'AA', -2147483648, 1505, 1601, 2014]
+[95, 61, 20409, 1, 25, 25, 1040, '1000-1059', 1, 1015, 859, 76, 'null', 0, 'B6', 6, 3, 1, 16102, 0, 6, 6, 905, '0800-0859', 0, 'LGB', 12954, 1295402, 32575, 'Long Beach, CA', 'CA', 6, 'California', 91, 353, 2, -2147483648, '[-2147483648]', 0, '[-2147483648]', '["null"]', -2147483648, -2147483648, '[-2147483648]', -2147483648, '["null"]', '[-2147483648]', '[-2147483648]', '[-2147483648]', 0, -2147483648, '2014-01-01', 147, 1, 0, -2147483648, 1, 19, 'OAK', 13796, 1379602, 32457, 'Oakland, CA', 'CA', 6, 'California', 91, 1, '["SEA", "PSC", "PHX", "MSY", "ATL", "TYS", "DEN", "CHS", "PDX", "LAX", "EWR", "SFO", "PIT", "RDU", "RAP", "LSE", "SAN", "SBN", "IAH", "OAK", "BRO", "JFK", "SAT", "ORD", "ACY", "DFW", "BWI", "TPA", "BFL"]', 0, 'N534JB', 9, 25, -2147483648, 'B6', 0, 930, 1031, 2014]
 
-Sending SQL: "SELECT playerName, sum(runs) AS sum_runs FROM "baseballStats" WHERE yearID>=2000 GROUP BY playerName ORDER BY sum_runs DESC LIMIT 5" to Pinot
-[('"Adrian"', 1820.0), ('"Jose Antonio"', 1692.0), ('"Rafael"', 1565.0), ('"Brian Michael"', 1500.0), ('"Alexander Emmanuel"', 1426.0)]
+Sending SQL to Pinot: SELECT count(*) FROM airlineStats LIMIT 5
+[10577]
+
+Sending SQL to Pinot: SELECT AirlineID, sum(Cancelled) FROM airlineStats WHERE Year > 2010 GROUP BY AirlineID LIMIT 5
+[20437, 0.0]
+[20409, 14.0]
+[19805, 33.0]
+[19790, 66.0]
+[20366, 18.0]
+
+Sending SQL to Pinot: select OriginCityName, max(Flights) from airlineStats group by OriginCityName ORDER BY max(Flights) DESC LIMIT 5
+['Casper, WY', 1.0]
+['Austin, TX', 1.0]
+['Deadhorse, AK', 1.0]
+['Chicago, IL', 1.0]
+['Monterey, CA', 1.0]
+
+Sending SQL to Pinot: SELECT OriginCityName, sum(Cancelled) AS sum_cancelled FROM airlineStats WHERE Year>2010 GROUP BY OriginCityName ORDER BY sum_cancelled DESC LIMIT 5
+['Chicago, IL', 112.0]
+['Atlanta, GA', 65.0]
+['New York, NY', 40.0]
+['Houston, TX', 35.0]
+['Denver, CO', 28.0]
+
+Sending Count(*) SQL to Pinot
+10578
+
+Sending SQL: "SELECT OriginCityName, sum(Cancelled) AS sum_cancelled FROM "airlineStats" WHERE Year>2010 GROUP BY OriginCityName ORDER BY sum_cancelled DESC LIMIT 5" to Pinot
+[('Chicago, IL', 112.0), ('Atlanta, GA', 65.0), ('New York, NY', 40.0), ('Houston, TX', 35.0), ('Denver, CO', 28.0)]
 ```
