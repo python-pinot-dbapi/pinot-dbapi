@@ -1,6 +1,6 @@
 # Python DB-API and SQLAlchemy dialect for Pinot #
 
-This module allows accessing Pinot via its [SQL API](https://github.com/linkedin/pinot/wiki/Pinot-Query-Language).
+This module allows accessing Pinot via its [SQL API](https://docs.pinot.apache.org/users/user-guide-query/pinot-query-language).
 
 ## Usage ##
 
