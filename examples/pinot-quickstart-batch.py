@@ -28,9 +28,9 @@ from sqlalchemy.schema import *
 ## Start Pinot Quickstart Batch
 ## docker run --name pinot-quickstart -p 2123:2123 -p 9000:9000 -p 8000:8000 -d apachepinot/pinot:latest QuickStart -type batchpy
 
-engine = create_engine('pinot://localhost:8000/query/sql?server=http://localhost:9000/')  # uses HTTP by default :(
-# engine = create_engine('pinot+http://localhost:8000/query/sql?server=http://localhost:9000/')
-# engine = create_engine('pinot+https://localhost:8000/query/sql?server=http://localhost:9000/')
+engine = create_engine('pinot://localhost:8000/query/sql?controller=http://localhost:9000/')  # uses HTTP by default :(
+# engine = create_engine('pinot+http://localhost:8000/query/sql?controller=http://localhost:9000/')
+# engine = create_engine('pinot+https://localhost:8000/query/sql?controller=http://localhost:9000/')
 
 baseballStats = Table('baseballStats', MetaData(bind=engine), autoload=True)
 print(f'\nSending Count(*) SQL to Pinot')

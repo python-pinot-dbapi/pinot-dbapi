@@ -70,17 +70,19 @@ def get_description_from_types(column_names, types):
     ]
 
 
-TypeCodeAndValue = namedtuple('TypeCodeAndValue', ['code', 'value', 'coerce_to_string'])
+TypeCodeAndValue = namedtuple('TypeCodeAndValue', ['code', 'is_iterable', 'coerce_to_string'])
 
 def get_types_from_column_data_types(column_data_types):
     types = [None] * len(column_data_types)
     for column_index, column_data_type in enumerate(column_data_types):
-        if column_data_type == "INT" or column_data_type == "LONG" or column_data_type == "FLOAT" or column_data_type == "DOUBLE":
-            types[column_index] = TypeCodeAndValue(Type.NUMBER, None, False)
-        elif column_data_type == "STRING" :
-            types[column_index] = TypeCodeAndValue(Type.STRING, None, False)
+        data_type = column_data_type.split("_")[0]
+        is_iterable = "_ARRAY" in column_data_type
+        if data_type == "INT" or data_type == "LONG" or data_type == "FLOAT" or data_type == "DOUBLE":
+            types[column_index] = TypeCodeAndValue(Type.NUMBER, is_iterable, False)
+        elif data_type == "STRING" or data_type == "BYTES":
+            types[column_index] = TypeCodeAndValue(Type.STRING, is_iterable, False)
         else:
-            types[column_index] = TypeCodeAndValue(Type.STRING, None, True)
+            types[column_index] = TypeCodeAndValue(Type.STRING, is_iterable, True)
     return types
 
 def get_group_by_column_names(aggregation_results):

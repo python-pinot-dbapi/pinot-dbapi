@@ -110,16 +110,19 @@ class PinotDialect(default.DefaultDialect):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._server = None
+        self._controller = None
         self._debug = False
         self.update_from_kwargs(kwargs)
 
     def update_from_kwargs(self, givenkw):
         kwargs = givenkw.copy() if givenkw else {}
+        ## For backward compatible
         if 'server' in kwargs:
-            self._server = kwargs.pop('server')
+            self._controller = kwargs.pop('server')
+        if 'controller' in kwargs:
+            self._controller = kwargs.pop('controller')
         kwargs['debug'] = self._debug = bool(kwargs.get('debug', False))
-        logger.info(f"Updated pinot dialect args from {kwargs}: {self._server} and {self._debug}")
+        logger.info(f"Updated pinot dialect args from {kwargs}: {self._controller} and {self._debug}")
         return kwargs
 
     @classmethod
@@ -140,14 +143,14 @@ class PinotDialect(default.DefaultDialect):
         return ([], kwargs)
 
     def get_metadata_from_controller(self, path):
-        url = parse.urljoin(self._server, path)
+        url = parse.urljoin(self._controller, path)
         r = requests.get(url, headers={'Accept':'application/json'})
         try:
             result = r.json()
         except ValueError as e:
-            raise exceptions.DatabaseError(f'Got invalid json response from {self._server}:{path}: {r.text}') from e
+            raise exceptions.DatabaseError(f'Got invalid json response from {self._controller}:{path}: {r.text}') from e
         if self._debug:
-            logger.info(f"metadata get on {self._server}:{path} returned {result}")
+            logger.info(f"metadata get on {self._controller}:{path} returned {result}")
         return result
 
     def get_schema_names(self, connection, **kwargs):
@@ -168,7 +171,7 @@ class PinotDialect(default.DefaultDialect):
     def get_columns(self, connection, table_name, schema=None, **kwargs):
         payload = self.get_metadata_from_controller(f'/tables/{table_name}/schema')
 
-        logger.info(f"Getting columns for {table_name} from {self._server}: {payload}")
+        logger.info(f"Getting columns for {table_name} from {self._controller}: {payload}")
         specs = payload.get('dimensionFieldSpecs', []) + payload.get('metricFieldSpecs', []) + payload.get('dateTimeFieldSpecs', [])
 
         timeFieldSpec = payload.get('timeFieldSpec')
