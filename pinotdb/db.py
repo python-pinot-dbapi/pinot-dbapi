@@ -14,6 +14,7 @@ import requests
 
 from pinotdb import exceptions
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,8 +40,9 @@ def check_closed(f):
 
     def g(self, *args, **kwargs):
         if self.closed:
-            raise exceptions.Error(f'{self.__class__.__name__} already closed')
+            raise exceptions.Error(f"{self.__class__.__name__} already closed")
         return f(self, *args, **kwargs)
+
     return g
 
 
@@ -49,35 +51,43 @@ def check_result(f):
 
     def g(self, *args, **kwargs):
         if self._results is None:
-            raise exceptions.Error('Called before `execute`')
+            raise exceptions.Error("Called before `execute`")
         return f(self, *args, **kwargs)
-    return g
 
+    return g
 
 
 def get_description_from_types(column_names, types):
     return [
         (
-            name,               # name
-            tc.code,            # type_code
-            None,               # [display_size]
-            None,               # [internal_size]
-            None,               # [precision]
-            None,               # [scale]
-            None,               # [null_ok]
+            name,  # name
+            tc.code,  # type_code
+            None,  # [display_size]
+            None,  # [internal_size]
+            None,  # [precision]
+            None,  # [scale]
+            None,  # [null_ok]
         )
         for name, tc in zip(column_names, types)
     ]
 
 
-TypeCodeAndValue = namedtuple('TypeCodeAndValue', ['code', 'is_iterable', 'coerce_to_string'])
+TypeCodeAndValue = namedtuple(
+    "TypeCodeAndValue", ["code", "is_iterable", "coerce_to_string"]
+)
+
 
 def get_types_from_column_data_types(column_data_types):
     types = [None] * len(column_data_types)
     for column_index, column_data_type in enumerate(column_data_types):
         data_type = column_data_type.split("_")[0]
         is_iterable = "_ARRAY" in column_data_type
-        if data_type == "INT" or data_type == "LONG" or data_type == "FLOAT" or data_type == "DOUBLE":
+        if (
+            data_type == "INT"
+            or data_type == "LONG"
+            or data_type == "FLOAT"
+            or data_type == "DOUBLE"
+        ):
             types[column_index] = TypeCodeAndValue(Type.NUMBER, is_iterable, False)
         elif data_type == "STRING" or data_type == "BYTES":
             types[column_index] = TypeCodeAndValue(Type.STRING, is_iterable, False)
@@ -85,13 +95,16 @@ def get_types_from_column_data_types(column_data_types):
             types[column_index] = TypeCodeAndValue(Type.STRING, is_iterable, True)
     return types
 
+
 def get_group_by_column_names(aggregation_results):
     group_by_cols = []
     for metric in aggregation_results:
-        metric_name = metric.get('function', 'noname')
-        gby_cols_for_metric = metric.get('groupByColumns', []) 
+        metric_name = metric.get("function", "noname")
+        gby_cols_for_metric = metric.get("groupByColumns", [])
         if group_by_cols and group_by_cols != gby_cols_for_metric:
-            raise exceptions.DatabaseError(f"Cols for metric {metric_name}: {gby_cols_for_metric} differ from other columns {group_by_cols}")
+            raise exceptions.DatabaseError(
+                f"Cols for metric {metric_name}: {gby_cols_for_metric} differ from other columns {group_by_cols}"
+            )
         elif not group_by_cols:
             group_by_cols = gby_cols_for_metric[:]
     return group_by_cols
@@ -104,12 +117,13 @@ def is_iterable(value):
     except TypeError:
         return False
 
+
 class Connection(object):
 
     """Connection to a Pinot database."""
 
     def __init__(self, *args, **kwargs):
-        self._debug = kwargs.get('debug', False)
+        self._debug = kwargs.get("debug", False)
         self._args = args
         self._kwargs = kwargs
         self.closed = False
@@ -168,11 +182,21 @@ def convert_result_if_required(types, rows):
 class Cursor(object):
     """Connection cursor."""
 
-    def __init__(self, host, port=8099, scheme='http', path='/query/sql', extra_request_headers='', debug=False, preserve_types=False, ignore_exception_error_codes='', acceptable_respond_fraction=-1):
+    def __init__(
+        self,
+        host,
+        port=8099,
+        scheme="http",
+        path="/query/sql",
+        extra_request_headers="",
+        debug=False,
+        preserve_types=False,
+        ignore_exception_error_codes="",
+        acceptable_respond_fraction=-1,
+    ):
         if path == "query":
             path = "query/sql"
-        self.url = parse.urlunparse(
-            (scheme, f'{host}:{port}', path, None, None, None))
+        self.url = parse.urlunparse((scheme, f"{host}:{port}", path, None, None, None))
 
         # This read/write attribute specifies the number of rows to fetch at a
         # time with .fetchmany(). It defaults to 1 meaning to fetch a single
@@ -189,13 +213,15 @@ class Cursor(object):
         self._preserve_types = preserve_types
         self.acceptable_respond_fraction = acceptable_respond_fraction
         if ignore_exception_error_codes:
-            self._ignore_exception_error_codes = set([int(x) for x in ignore_exception_error_codes.split(',')])
+            self._ignore_exception_error_codes = set(
+                [int(x) for x in ignore_exception_error_codes.split(",")]
+            )
         else:
             self._ignore_exception_error_codes = []
         extra_headers = {}
         if extra_request_headers:
-            for header in extra_request_headers.split(','):
-                k, v = header.split('=')
+            for header in extra_request_headers.split(","):
+                k, v = header.split("=")
                 extra_headers[k] = v
         self._extra_request_headers = extra_headers
 
@@ -205,10 +231,10 @@ class Cursor(object):
         self.closed = True
 
     def is_valid_exception(self, e):
-        if 'errorCode' not in e:
+        if "errorCode" not in e:
             return True
         else:
-            return e['errorCode'] not in self._ignore_exception_error_codes
+            return e["errorCode"] not in self._ignore_exception_error_codes
 
     def check_sufficient_responded(self, query, queried, responded):
         fraction = self.acceptable_respond_fraction
@@ -224,60 +250,74 @@ class Cursor(object):
         else:
             needed = fraction
         if responded < 0 or responded < needed:
-            raise exceptions.DatabaseError(f"Query\n\n{query} timed out: Out of {queried}, only"
-                    f" {responded} responded, while needed was {needed}")
+            raise exceptions.DatabaseError(
+                f"Query\n\n{query} timed out: Out of {queried}, only"
+                f" {responded} responded, while needed was {needed}"
+            )
 
     @check_closed
     def execute(self, operation, parameters=None):
         query = apply_parameters(operation, parameters or {})
-        headers = {'Content-Type': 'application/json'}
+        headers = {"Content-Type": "application/json"}
         headers.update(self._extra_request_headers)
         if self._preserve_types:
             query += " OPTION(preserveType='true')"
-        payload = {'sql': query}
+        payload = {"sql": query}
         if self._debug:
-            logger.info(f'Submitting the pinot query to {self.url}:\n{query}\n{pformat(payload)}, with {headers}')
+            logger.info(
+                f"Submitting the pinot query to {self.url}:\n{query}\n{pformat(payload)}, with {headers}"
+            )
         r = requests.post(self.url, headers=headers, json=payload)
         if r.encoding is None:
-            r.encoding = 'utf-8'
+            r.encoding = "utf-8"
 
         try:
             payload = r.json()
         except Exception as e:
-            raise exceptions.DatabaseError(f"Error when querying {query} from {self.url}, raw response is:\n{r.text}") from e
+            raise exceptions.DatabaseError(
+                f"Error when querying {query} from {self.url}, raw response is:\n{r.text}"
+            ) from e
 
         if self._debug:
-            logger.info(f'Got the payload of type {type(payload)} with the status code {0 if not r else r.status_code}:\n{payload}')
+            logger.info(
+                f"Got the payload of type {type(payload)} with the status code {0 if not r else r.status_code}:\n{payload}"
+            )
 
-        num_servers_responded = payload.get('numServersResponded', -1)
-        num_servers_queried = payload.get('numServersQueried', -1)
+        num_servers_responded = payload.get("numServersResponded", -1)
+        num_servers_queried = payload.get("numServersQueried", -1)
 
-        self.check_sufficient_responded(query, num_servers_queried, num_servers_responded)
+        self.check_sufficient_responded(
+            query, num_servers_queried, num_servers_responded
+        )
 
         # raise any error messages
         if r.status_code != 200:
             msg = f"Query\n\n{query}\n\nreturned an error: {r.status_code}\nFull response is {pformat(payload)}"
             raise exceptions.ProgrammingError(msg)
 
-        query_exceptions = [e for e in payload.get('exceptions', []) if self.is_valid_exception(e)]
+        query_exceptions = [
+            e for e in payload.get("exceptions", []) if self.is_valid_exception(e)
+        ]
         if query_exceptions:
-            msg = '\n'.join(pformat(exception) for exception in query_exceptions)
+            msg = "\n".join(pformat(exception) for exception in query_exceptions)
             raise exceptions.DatabaseError(msg)
 
         rows = []  # array of array, where inner array is array of column values
-        column_names = [] # column names, such that len(column_names) == len(rows[0])
-        column_data_types = [] # column data types 1:1 mapping to column_names
-        if 'resultTable' in payload:
-            results = payload['resultTable']
-            column_names = results.get('dataSchema').get('columnNames')
-            column_data_types = results.get('dataSchema').get('columnDataTypes')
-            values = results.get('rows')
+        column_names = []  # column names, such that len(column_names) == len(rows[0])
+        column_data_types = []  # column data types 1:1 mapping to column_names
+        if "resultTable" in payload:
+            results = payload["resultTable"]
+            column_names = results.get("dataSchema").get("columnNames")
+            column_data_types = results.get("dataSchema").get("columnDataTypes")
+            values = results.get("rows")
             if column_names and values:
                 rows = values
             else:
-                raise exceptions.DatabaseError(f'Expected columns and results in resultTable, but got {pformat(results)} instead')
+                raise exceptions.DatabaseError(
+                    f"Expected columns and results in resultTable, but got {pformat(results)} instead"
+                )
 
-        logger.debug(f'Got the rows as a type {type(rows)} of size {len(rows)}')
+        logger.debug(f"Got the rows as a type {type(rows)} of size {len(rows)}")
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(pformat(rows))
         self.description = None
@@ -285,7 +325,9 @@ class Cursor(object):
         if column_data_types:
             types = get_types_from_column_data_types(column_data_types)
             if self._debug:
-                logger.info(f'Column_names are {pformat(column_names)}, Column_data_types are {pformat(column_data_types)}, Types are {pformat(types)}')
+                logger.info(
+                    f"Column_names are {pformat(column_names)}, Column_data_types are {pformat(column_data_types)}, Types are {pformat(types)}"
+                )
             self._results = convert_result_if_required(types, rows)
             self.description = get_description_from_types(column_names, types)
         return self
@@ -293,7 +335,8 @@ class Cursor(object):
     @check_closed
     def executemany(self, operation, seq_of_parameters=None):
         raise exceptions.NotSupportedError(
-            '`executemany` is not supported, use `execute` instead')
+            "`executemany` is not supported, use `execute` instead"
+        )
 
     @check_result
     @check_closed
@@ -355,20 +398,18 @@ class Cursor(object):
 
 
 def apply_parameters(operation, parameters):
-    escaped_parameters = {
-        key: escape(value) for key, value in parameters.items()
-    }
+    escaped_parameters = {key: escape(value) for key, value in parameters.items()}
     return operation % escaped_parameters
 
 
 def escape(value):
-    if value == '*':
+    if value == "*":
         return value
     elif isinstance(value, string_types):
         return "'{}'".format(value.replace("'", "''"))
     elif isinstance(value, (int, float)):
         return value
     elif isinstance(value, bool):
-        return 'TRUE' if value else 'FALSE'
+        return "TRUE" if value else "FALSE"
     elif isinstance(value, (list, tuple)):
-        return ', '.join(escape(element) for element in value)
+        return ", ".join(escape(element) for element in value)
