@@ -310,7 +310,7 @@ class Cursor(object):
             column_names = results.get("dataSchema").get("columnNames")
             column_data_types = results.get("dataSchema").get("columnDataTypes")
             values = results.get("rows")
-            if column_names and values:
+            if column_names:
                 rows = values
             else:
                 raise exceptions.DatabaseError(
