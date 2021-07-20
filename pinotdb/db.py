@@ -218,16 +218,21 @@ class Cursor(object):
             )
         else:
             self._ignore_exception_error_codes = []
+            
+        self.session = requests.Session()
+        self.session.headers.update({"Content-Type": "application/json"})
+        
         extra_headers = {}
         if extra_request_headers:
             for header in extra_request_headers.split(","):
                 k, v = header.split("=")
                 extra_headers[k] = v
-        self._extra_request_headers = extra_headers
+        self.session.headers.update(extra_headers)
 
     @check_closed
     def close(self):
         """Close the cursor."""
+        self.session.close()
         self.closed = True
 
     def is_valid_exception(self, e):
@@ -258,16 +263,15 @@ class Cursor(object):
     @check_closed
     def execute(self, operation, parameters=None):
         query = apply_parameters(operation, parameters or {})
-        headers = {"Content-Type": "application/json"}
-        headers.update(self._extra_request_headers)
+        
         if self._preserve_types:
             query += " OPTION(preserveType='true')"
         payload = {"sql": query}
         if self._debug:
             logger.info(
-                f"Submitting the pinot query to {self.url}:\n{query}\n{pformat(payload)}, with {headers}"
+                f"Submitting the pinot query to {self.url}:\n{query}\n{pformat(payload)}, with {self.session.headers}"
             )
-        r = requests.post(self.url, headers=headers, json=payload)
+        r = self.session.post(self.url, json=payload)
         if r.encoding is None:
             r.encoding = "utf-8"
 
