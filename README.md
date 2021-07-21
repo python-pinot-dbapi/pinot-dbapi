@@ -127,3 +127,18 @@ Sending Count(*) SQL to Pinot
 Sending SQL: "SELECT OriginCityName, sum(Cancelled) AS sum_cancelled FROM "airlineStats" WHERE Year>2010 GROUP BY OriginCityName ORDER BY sum_cancelled DESC LIMIT 5" to Pinot
 [('Chicago, IL', 178.0), ('Atlanta, GA', 111.0), ('New York, NY', 65.0), ('Houston, TX', 62.0), ('Denver, CO', 49.0)]
 ```
+
+## Release ##
+
+Update pinotdb/__version__.py file to set the desired library version, e.g. 0.3.4.
+
+Run to build the distribution and test it locally.
+```
+python3 setup.py sdist
+```
+
+run below command to build the distribution and upload it to [pypi pinotdb](https://pypi.org/project/pinotdb/)
+```
+python3 setup.py sdist upload
+```
+
