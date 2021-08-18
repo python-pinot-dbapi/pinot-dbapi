@@ -147,6 +147,8 @@ class PinotDialect(default.DefaultDialect):
             "port": url.port or 9000,
             "path": url.database,
             "scheme": self.scheme,
+            "username": url.username,
+            "password": url.password,
         }
         if url.query:
             kwargs.update(url.query)
