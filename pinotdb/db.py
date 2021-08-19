@@ -188,6 +188,8 @@ class Cursor(object):
         port=8099,
         scheme="http",
         path="/query/sql",
+        username=None,
+        password=None,
         extra_request_headers="",
         debug=False,
         preserve_types=False,
@@ -220,6 +222,7 @@ class Cursor(object):
             self._ignore_exception_error_codes = []
             
         self.session = requests.Session()
+        self.session.auth = (username, password)
         self.session.headers.update({"Content-Type": "application/json"})
         
         extra_headers = {}
