@@ -202,7 +202,9 @@ class PinotCompiler(compiler.SQLCompiler):
 
     def escape_literal_column(self, text):
         # This is a hack to quote column names that conflict with reserved words since 'column.is_literal = True'
-        return self.preparer.quote(super().escape_literal_column(text))
+        if text in self.preparer.reserved_words:
+            return self.preparer.quote(super().escape_literal_column(text))
+        return super().escape_literal_column(text)
 
     def visit_label(
         self,
