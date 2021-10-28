@@ -35,7 +35,8 @@ CALCITE_KEYWORDS = set([
     'CAST', 'CATALOG', 'CATALOG_NAME', 'CEIL',
     'CEILING', 'CENTURY', 'CHAIN', 'CHAR',
     'CHARACTER', 'CHARACTERISTICS', 'CHARACTERS', 'CHARACTER_LENGTH',
-    'CHARACTER_SET_CATALOG', 'CHARACTER_SET_NAME', 'CHARACTER_SET_SCHEMA', 'CHAR_LENGTH',
+    'CHARACTER_SET_CATALOG', 'CHARACTER_SET_NAME', 'CHARACTER_SET_SCHEMA',
+    'CHAR_LENGTH',
     'CHECK', 'CLASSIFIER', 'CLASS_ORIGIN', 'CLOB',
     'CLOSE', 'COALESCE', 'COBOL', 'COLLATE',
     'COLLATION', 'COLLATION_CATALOG', 'COLLATION_NAME', 'COLLATION_SCHEMA',
@@ -47,11 +48,14 @@ CALCITE_KEYWORDS = set([
     'CONVERT', 'CORR', 'CORRESPONDING', 'COUNT',
     'COVAR_POP', 'COVAR_SAMP', 'CREATE', 'CROSS',
     'CUBE', 'CUME_DIST', 'CURRENT', 'CURRENT_CATALOG',
-    'CURRENT_DATE', 'CURRENT_DEFAULT_TRANSFORM_GROUP', 'CURRENT_PATH', 'CURRENT_ROLE',
+    'CURRENT_DATE', 'CURRENT_DEFAULT_TRANSFORM_GROUP', 'CURRENT_PATH',
+    'CURRENT_ROLE',
     'CURRENT_ROW', 'CURRENT_SCHEMA', 'CURRENT_TIME', 'CURRENT_TIMESTAMP',
-    'CURRENT_TRANSFORM_GROUP_FOR_TYPE', 'CURRENT_USER', 'CURSOR', 'CURSOR_NAME',
+    'CURRENT_TRANSFORM_GROUP_FOR_TYPE', 'CURRENT_USER', 'CURSOR',
+    'CURSOR_NAME',
     'CYCLE', 'DATA', 'DATABASE', 'DATE',
-    'DATETIME_INTERVAL_CODE', 'DATETIME_INTERVAL_PRECISION', 'DAY', 'DEALLOCATE',
+    'DATETIME_INTERVAL_CODE', 'DATETIME_INTERVAL_PRECISION', 'DAY',
+    'DEALLOCATE',
     'DEC', 'DECADE', 'DECIMAL', 'DECLARE',
     'DEFAULT', 'DEFAULTS', 'DEFERRABLE', 'DEFERRED',
     'DEFINE', 'DEFINED', 'DEFINER', 'DEGREE',
@@ -110,8 +114,10 @@ CALCITE_KEYWORDS = set([
     'ORDINALITY', 'OTHERS', 'OUT', 'OUTER',
     'OUTPUT', 'OVER', 'OVERLAPS', 'OVERLAY',
     'OVERRIDING', 'PAD', 'PARAMETER', 'PARAMETER_MODE',
-    'PARAMETER_NAME', 'PARAMETER_ORDINAL_POSITION', 'PARAMETER_SPECIFIC_CATALOG',
-    'PARAMETER_SPECIFIC_NAME', 'PARAMETER_SPECIFIC_SCHEMA', 'PARTIAL', 'PARTITION',
+    'PARAMETER_NAME', 'PARAMETER_ORDINAL_POSITION',
+    'PARAMETER_SPECIFIC_CATALOG',
+    'PARAMETER_SPECIFIC_NAME', 'PARAMETER_SPECIFIC_SCHEMA', 'PARTIAL',
+    'PARTITION',
     'PASCAL', 'PASSTHROUGH', 'PAST', 'PATH', 'PATTERN',
     'PER', 'PERCENT', 'PERCENTILE_CONT', 'PERCENTILE_DISC',
     'PERCENT_RANK', 'PERIOD', 'PERMUTE', 'PLACING',
@@ -126,7 +132,8 @@ CALCITE_KEYWORDS = set([
     'REGR_SLOPE', 'REGR_SXX', 'REGR_SXY', 'REGR_SYY',
     'RELATIVE', 'RELEASE', 'REPEATABLE', 'REPLACE',
     'RESET', 'RESTART', 'RESTRICT', 'RESULT',
-    'RETURN', 'RETURNED_CARDINALITY', 'RETURNED_LENGTH', 'RETURNED_OCTET_LENGTH',
+    'RETURN', 'RETURNED_CARDINALITY', 'RETURNED_LENGTH',
+    'RETURNED_OCTET_LENGTH',
     'RETURNED_SQLSTATE', 'RETURNS', 'REVOKE', 'RIGHT',
     'ROLE', 'ROLLBACK', 'ROLLUP', 'ROUTINE',
     'ROUTINE_CATALOG', 'ROUTINE_NAME', 'ROUTINE_SCHEMA', 'ROW',
@@ -145,11 +152,15 @@ CALCITE_KEYWORDS = set([
     'SQL_BLOB', 'SQL_BOOLEAN', 'SQL_CHAR', 'SQL_CLOB',
     'SQL_DATE', 'SQL_DECIMAL', 'SQL_DOUBLE', 'SQL_FLOAT',
     'SQL_INTEGER', 'SQL_INTERVAL_DAY', 'SQL_INTERVAL_DAY_TO_HOUR',
-    'SQL_INTERVAL_DAY_TO_MINUTE', 'SQL_INTERVAL_DAY_TO_SECOND', 'SQL_INTERVAL_HOUR',
-    'SQL_INTERVAL_HOUR_TO_MINUTE', 'SQL_INTERVAL_HOUR_TO_SECOND', 'SQL_INTERVAL_MINUTE',
-    'SQL_INTERVAL_MINUTE_TO_SECOND', 'SQL_INTERVAL_MONTH', 'SQL_INTERVAL_SECOND',
+    'SQL_INTERVAL_DAY_TO_MINUTE', 'SQL_INTERVAL_DAY_TO_SECOND',
+    'SQL_INTERVAL_HOUR',
+    'SQL_INTERVAL_HOUR_TO_MINUTE', 'SQL_INTERVAL_HOUR_TO_SECOND',
+    'SQL_INTERVAL_MINUTE',
+    'SQL_INTERVAL_MINUTE_TO_SECOND', 'SQL_INTERVAL_MONTH',
+    'SQL_INTERVAL_SECOND',
     'SQL_INTERVAL_YEAR', 'SQL_INTERVAL_YEAR_TO_MONTH', 'SQL_LONGVARBINARY',
-    'SQL_LONGVARCHAR', 'SQL_LONGVARNCHAR', 'SQL_NCHAR', 'SQL_NCLOB', 'SQL_NUMERIC',
+    'SQL_LONGVARCHAR', 'SQL_LONGVARNCHAR', 'SQL_NCHAR', 'SQL_NCLOB',
+    'SQL_NUMERIC',
     'SQL_NVARCHAR', 'SQL_REAL', 'SQL_SMALLINT', 'SQL_TIME',
     'SQL_TIMESTAMP', 'SQL_TINYINT', 'SQL_TSI_DAY', 'SQL_TSI_FRAC_SECOND',
     'SQL_TSI_HOUR', 'SQL_TSI_MICROSECOND', 'SQL_TSI_MINUTE', 'SQL_TSI_MONTH',
@@ -165,7 +176,8 @@ CALCITE_KEYWORDS = set([
     'TIMESTAMPADD', 'TIMESTAMPDIFF', 'TIMEZONE_HOUR', 'TIMEZONE_MINUTE',
     'TINYINT', 'TO', 'TOP_LEVEL_COUNT', 'TRAILING',
     'TRANSACTION', 'TRANSACTIONS_ACTIVE', 'TRANSACTIONS_COMMITTED',
-    'TRANSACTIONS_ROLLED_BACK', 'TRANSFORM', 'TRANSFORMS', 'TRANSLATE', 'TRANSLATE_REGEX',
+    'TRANSACTIONS_ROLLED_BACK', 'TRANSFORM', 'TRANSFORMS', 'TRANSLATE',
+    'TRANSLATE_REGEX',
     'TRANSLATION', 'TREAT', 'TRIGGER', 'TRIGGER_CATALOG',
     'TRIGGER_NAME', 'TRIGGER_SCHEMA', 'TRIM', 'TRIM_ARRAY',
     'TRUE', 'TRUNCATE', 'TYPE', 'UESCAPE',
@@ -173,7 +185,8 @@ CALCITE_KEYWORDS = set([
     'UNIQUE', 'UNKNOWN', 'UNNAMED', 'UNNEST',
     'UPDATE', 'UPPER', 'UPSERT', 'USAGE',
     'USER', 'USER_DEFINED_TYPE_CATALOG', 'USER_DEFINED_TYPE_CODE',
-    'USER_DEFINED_TYPE_NAME', 'USER_DEFINED_TYPE_SCHEMA', 'USING', 'VALUE', 'VALUES',
+    'USER_DEFINED_TYPE_NAME', 'USER_DEFINED_TYPE_SCHEMA', 'USING', 'VALUE',
+    'VALUES',
     'VALUE_OF', 'VARBINARY', 'VARCHAR', 'VARYING',
     'VAR_POP', 'VAR_SAMP', 'VERSION', 'VERSIONING',
     'VIEW', 'WEEK', 'WHEN', 'WHENEVER',
@@ -201,7 +214,8 @@ class PinotCompiler(compiler.SQLCompiler):
         return super().visit_column(column, result_map, **kwargs)
 
     def escape_literal_column(self, text):
-        # This is a hack to quote column names that conflict with reserved words since 'column.is_literal = True'
+        # This is a hack to quote column names that conflict with reserved
+        # words since 'column.is_literal = True'
         if text in self.preparer.reserved_words:
             return self.preparer.quote(super().escape_literal_column(text))
         return super().escape_literal_column(text)
@@ -274,7 +288,8 @@ class PinotTypeCompiler(compiler.GenericTypeCompiler):
 
 
 class PinotIdentifierPareparer(compiler.IdentifierPreparer):
-    reserved_words = set([e.lower() for e in (CALCITE_KEYWORDS ^ SUPERSET_KEYWORDS)])
+    reserved_words = set(
+        [e.lower() for e in (CALCITE_KEYWORDS ^ SUPERSET_KEYWORDS)])
 
     def __init__(self, dialect, initial_quote='"',
                  final_quote=None, escape_quote='"', omit_schema=True):
@@ -311,7 +326,7 @@ class PinotDialect(default.DefaultDialect):
 
     def update_from_kwargs(self, givenkw):
         kwargs = givenkw.copy() if givenkw else {}
-        ## For backward compatible
+        # For backward compatible
         if "server" in kwargs:
             self._controller = kwargs.pop("server")
         if "controller" in kwargs:
@@ -349,7 +364,8 @@ class PinotDialect(default.DefaultDialect):
             result = r.json()
         except ValueError as e:
             raise exceptions.DatabaseError(
-                f"Got invalid json response from {self._controller}:{path}: {r.text}"
+                "Got invalid json response from "
+                f"{self._controller}:{path}: {r.text}"
             ) from e
         if self._debug:
             logger.info(
@@ -374,7 +390,8 @@ class PinotDialect(default.DefaultDialect):
         return {}
 
     def get_columns(self, connection, table_name, schema=None, **kwargs):
-        payload = self.get_metadata_from_controller(f"/tables/{table_name}/schema")
+        payload = self.get_metadata_from_controller(
+            f"/tables/{table_name}/schema")
 
         logger.info(
             "Getting columns for %s from %s: %s",
@@ -390,7 +407,8 @@ class PinotDialect(default.DefaultDialect):
         if timeFieldSpec:
             specs.append(
                 timeFieldSpec.get(
-                    "outgoingGranularitySpec", timeFieldSpec["incomingGranularitySpec"]
+                    "outgoingGranularitySpec",
+                    timeFieldSpec["incomingGranularitySpec"]
                 )
             )
 
@@ -412,7 +430,8 @@ class PinotDialect(default.DefaultDialect):
     def get_foreign_keys(self, connection, table_name, schema=None, **kwargs):
         return []
 
-    def get_check_constraints(self, connection, table_name, schema=None, **kwargs):
+    def get_check_constraints(
+            self, connection, table_name, schema=None, **kwargs):
         return []
 
     def get_table_comment(self, connection, table_name, schema=None, **kwargs):
@@ -421,10 +440,12 @@ class PinotDialect(default.DefaultDialect):
     def get_indexes(self, connection, table_name, schema=None, **kwargs):
         return []
 
-    def get_unique_constraints(self, connection, table_name, schema=None, **kwargs):
+    def get_unique_constraints(
+            self, connection, table_name, schema=None, **kwargs):
         return []
 
-    def get_view_definition(self, connection, view_name, schema=None, **kwargs):
+    def get_view_definition(
+            self, connection, view_name, schema=None, **kwargs):
         pass
 
     def do_rollback(self, dbapi_connection):
