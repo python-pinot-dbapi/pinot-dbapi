@@ -318,7 +318,8 @@ class PinotDialect(default.DefaultDialect):
             self._controller = kwargs.pop("controller")
         kwargs["debug"] = self._debug = bool(kwargs.get("debug", False))
         logger.info(
-            f"Updated pinot dialect args from {kwargs}: {self._controller} and {self._debug}"
+            "Updated pinot dialect args from %s: %s and %s",
+            kwargs, self._controller, self._debug
         )
         return kwargs
 
@@ -351,7 +352,10 @@ class PinotDialect(default.DefaultDialect):
                 f"Got invalid json response from {self._controller}:{path}: {r.text}"
             ) from e
         if self._debug:
-            logger.info(f"metadata get on {self._controller}:{path} returned {result}")
+            logger.info(
+                "metadata get on %s:%s returned %s",
+                self._controller, path, result
+            )
         return result
 
     def get_schema_names(self, connection, **kwargs):
@@ -373,7 +377,8 @@ class PinotDialect(default.DefaultDialect):
         payload = self.get_metadata_from_controller(f"/tables/{table_name}/schema")
 
         logger.info(
-            f"Getting columns for {table_name} from {self._controller}: {payload}"
+            "Getting columns for %s from %s: %s",
+            table_name, self._controller, payload
         )
         specs = (
             payload.get("dimensionFieldSpecs", [])
