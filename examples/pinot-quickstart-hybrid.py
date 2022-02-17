@@ -49,7 +49,8 @@ engine = create_engine(
 
 airlineStats = Table("airlineStats", MetaData(bind=engine), autoload=True)
 print(f"\nSending Count(*) SQL to Pinot")
-print(select([func.count("*")], from_obj=airlineStats).scalar())
+query=select([func.count("*")], from_obj=airlineStats)
+print(engine.execute(query).scalar())
 
 
 from sqlalchemy.orm import sessionmaker
