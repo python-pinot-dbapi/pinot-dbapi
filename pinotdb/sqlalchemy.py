@@ -265,17 +265,16 @@ class PinotTypeCompiler(compiler.GenericTypeCompiler):
     visit_NVARCHAR = visit_CHAR
     visit_TEXT = visit_CHAR
 
+    def visit_BINARY(self, type_, **kwargs):
+        return "BYTES"
+
+    visit_VARBINARY=visit_BINARY
+
     def visit_DATETIME(self, type_, **kwargs):
-        raise exceptions.NotSupportedError("Type DATETIME is not supported")
+        return "TIMESTAMP"
 
     def visit_TIME(self, type_, **kwargs):
         raise exceptions.NotSupportedError("Type TIME is not supported")
-
-    def visit_BINARY(self, type_, **kwargs):
-        raise exceptions.NotSupportedError("Type BINARY is not supported")
-
-    def visit_VARBINARY(self, type_, **kwargs):
-        raise exceptions.NotSupportedError("Type VARBINARY is not supported")
 
     def visit_BLOB(self, type_, **kwargs):
         raise exceptions.NotSupportedError("Type BLOB is not supported")
@@ -462,7 +461,6 @@ PinotHTTPDialect = PinotDialect
 
 
 class PinotHTTPSDialect(PinotDialect):
-
     scheme = "https"
 
 
@@ -475,12 +473,17 @@ def get_default(pinot_column_default):
 
 def get_type(data_type, field_size):
     type_map = {
-        "string": types.String,
         "int": types.BigInteger,
         "long": types.BigInteger,
         "float": types.Float,
         "double": types.Numeric,
-        "bytes": types.LargeBinary,
         "boolean": types.Boolean,
+        "timestamp": types.TIMESTAMP,
+        "string": types.String,
+        "json": types.JSON,
+        "bytes": types.LargeBinary,
+        "struct": types.BLOB,
+        "map": types.BLOB,
+        "array": types.ARRAY,
     }
     return type_map[data_type.lower()]
