@@ -315,6 +315,8 @@ class PinotDialect(default.DefaultDialect):
     description_encoding = None
     supports_native_boolean = True
     supports_simple_order_by_label = False
+    broker_http_port = 8000
+    broker_https_port = 443
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -341,10 +343,15 @@ class PinotDialect(default.DefaultDialect):
     def dbapi(cls):
         return pinotdb
 
+    def get_default_broker_port(self):
+        if self.scheme.lower() == "https":
+            return self.broker_https_port
+        return self.broker_http_port
+
     def create_connect_args(self, url):
         kwargs = {
             "host": url.host,
-            "port": url.port or 9000,
+            "port": url.port or self.get_default_broker_port(),
             "path": url.database,
             "scheme": self.scheme,
             "username": url.username,
@@ -471,17 +478,20 @@ def get_default(pinot_column_default):
         return str(pinot_column_default)
 
 
+## Ref to supported Pinot data types: https://docs.pinot.apache.org/basics/components/schema#data-types
 def get_type(data_type, field_size):
     type_map = {
         "int": types.BigInteger,
         "long": types.BigInteger,
         "float": types.Float,
         "double": types.Numeric,
+        # BOOLEAN, is added after release 0.7.1. In release 0.7.1 and older releases, BOOLEAN is equivalent to STRING.
         "boolean": types.Boolean,
         "timestamp": types.TIMESTAMP,
         "string": types.String,
         "json": types.JSON,
         "bytes": types.LargeBinary,
+        # Complex types
         "struct": types.BLOB,
         "map": types.BLOB,
         "array": types.ARRAY,
