@@ -190,6 +190,7 @@ class Cursor(object):
         path="/query/sql",
         username=None,
         password=None,
+        verify_ssl=True,
         extra_request_headers="",
         debug=False,
         preserve_types=False,
@@ -220,9 +221,10 @@ class Cursor(object):
             )
         else:
             self._ignore_exception_error_codes = []
-            
+
         self.session = requests.Session()
         self.session.auth = (username, password)
+        self.session.verify = verify_ssl
         self.session.headers.update({"Content-Type": "application/json"})
         
         extra_headers = {}
@@ -266,7 +268,7 @@ class Cursor(object):
     @check_closed
     def execute(self, operation, parameters=None):
         query = apply_parameters(operation, parameters or {})
-        
+
         if self._preserve_types:
             query += " OPTION(preserveType='true')"
         payload = {"sql": query}
@@ -274,7 +276,7 @@ class Cursor(object):
             logger.info(
                 f"Submitting the pinot query to {self.url}:\n{query}\n{pformat(payload)}, with {self.session.headers}"
             )
-        r = self.session.post(self.url, json=payload)
+        r = self.session.post(self.url, json=payload, verify=self.session.verify, auth=self.session.auth)
         if r.encoding is None:
             r.encoding = "utf-8"
 

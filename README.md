@@ -42,6 +42,12 @@ for row in curs:
     print(row)
 ```
 
+Pinot also supports basic auth, e.g.
+
+```python
+conn = connect(host="localhost", port=443, path="/query/sql", scheme="https", username="my-user", password="my-password", verify_ssl=True)
+```
+
 ### Using SQLAlchemy:
 
 Since db engine requires more information beyond Pinot Broker, you need to provide pinot controller for table and schema information.
@@ -67,6 +73,15 @@ Please note that the broker port 443 has to be explicitly put there.
 This can be used as Superset to Pinot connection:
 
 <img title="Superset Pinot Connection" src="assets/images/screenshots/superset-connection.png"/>
+
+If you have basic auth:
+
+```
+pinot+https://<my-user>:<my-password>@<pinot-broker-host>:<pinot-broker-port><pinot-broker-path>?controller=https://<pinot-controller-host>:<pinot-controller-port>/[&&verify_ssl=<true/false>]
+```
+
+E.g.
+`pinot+https://my-user:my-password@my-secure-pinot-broker:443/query/sql?controller=https://my-secure-pinot-controller/&&verify_ssl=true`.
 
 Below are some sample scripts to query pinot using sqlalchemy:
 
