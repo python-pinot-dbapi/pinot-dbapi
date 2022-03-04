@@ -6,6 +6,7 @@ from __future__ import unicode_literals
 from six.moves.urllib import parse
 
 import requests
+from requests.auth import HTTPBasicAuth
 from sqlalchemy.engine import default
 from sqlalchemy.sql import compiler
 from sqlalchemy.sql import elements
@@ -162,7 +163,12 @@ class PinotDialect(default.DefaultDialect):
             self._controller = kwargs.pop("server")
         if "controller" in kwargs:
             self._controller = kwargs.pop("controller")
+        if "username" in kwargs:
+            kwargs["username"] = self._username = kwargs.pop("username")
+        if "password" in kwargs:
+            kwargs["password"] = self._password = kwargs.pop("password")
         kwargs["debug"] = self._debug = bool(kwargs.get("debug", False))
+        kwargs["verify_ssl"] = self._verify_ssl = bool(kwargs.get("verify_ssl", False))
         logger.info(
             "Updated pinot dialect args from %s: %s and %s",
             kwargs,
@@ -188,6 +194,7 @@ class PinotDialect(default.DefaultDialect):
             "scheme": self.scheme,
             "username": url.username,
             "password": url.password,
+            "verify_ssl": self._verify_ssl,
         }
         if url.query:
             kwargs.update(url.query)
@@ -197,7 +204,7 @@ class PinotDialect(default.DefaultDialect):
 
     def get_metadata_from_controller(self, path):
         url = parse.urljoin(self._controller, path)
-        r = requests.get(url, headers={"Accept": "application/json"})
+        r = requests.get(url, headers={"Accept": "application/json"}, verify=self._verify_ssl, auth= HTTPBasicAuth(self._username, self._password))
         try:
             result = r.json()
         except ValueError as e:
