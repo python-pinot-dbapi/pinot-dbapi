@@ -169,7 +169,7 @@ class PinotDialect(default.DefaultDialect):
         if "password" in kwargs:
             kwargs["password"] = self._password = kwargs.pop("password")
         kwargs["debug"] = self._debug = bool(kwargs.get("debug", False))
-        kwargs["verify_ssl"] = self._verify_ssl = (kwargs.get("verify_ssl", "true").lower() in ['true'])
+        kwargs["verify_ssl"] = self._verify_ssl = (str(kwargs.get("verify_ssl", "true")).lower() in ['true'])
         logger.info(
             "Updated pinot dialect args from %s: %s and %s",
             kwargs,
