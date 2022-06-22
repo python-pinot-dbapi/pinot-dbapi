@@ -219,7 +219,7 @@ class PinotDialect(default.DefaultDialect):
         return result
 
     def get_schema_names(self, connection, **kwargs):
-        return self.get_metadata_from_controller("/schemas")
+        return ["default"]
 
     def has_table(self, connection, table_name, schema=None):
         return table_name in self.get_table_names(connection, schema)
