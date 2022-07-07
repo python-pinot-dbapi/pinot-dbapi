@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import asyncio
 import json
 import logging
 from collections import namedtuple, OrderedDict
@@ -130,14 +131,27 @@ class Connection(object):
         self.cursors = []
 
     @check_closed
-    async def close(self):
+    def close(self):
         """Close the connection now."""
         self.closed = True
         for cursor in self.cursors:
             try:
-                await cursor.close()
+                cursor.close()
             except exceptions.Error:
                 pass  # already closed
+
+    @check_closed
+    async def close_async(self):
+        """Close the connection now."""
+        self.closed = True
+        close_reqs = []
+        for cursor in self.cursors:
+            try:
+                close_reqs.append(cursor.close_async())
+            except exceptions.Error:
+                pass  # already closed
+
+        await asyncio.gather(*close_reqs)
 
     @check_closed
     def commit(self):
@@ -149,23 +163,37 @@ class Connection(object):
         pass
 
     @check_closed
-    def cursor(self):
+    def cursor(self, use_async=False):
         """Return a new Cursor Object using the connection."""
-        cursor = Cursor(*self._args, **self._kwargs)
+        if use_async and not self._kwargs.get('use_async'):
+            cursor = Cursor(*self._args, use_async=use_async, **self._kwargs)
+        else:
+            cursor = Cursor(*self._args, **self._kwargs)
         self.cursors.append(cursor)
 
         return cursor
 
     @check_closed
-    async def execute(self, operation, parameters=None):
+    def execute(self, operation, parameters=None):
         cursor = self.cursor()
-        return await cursor.execute(operation, parameters)
+        return cursor.execute(operation, parameters)
+
+    @check_closed
+    async def execute_async(self, operation, parameters=None):
+        cursor = self.cursor(use_async=True)
+        return await cursor.execute_async(operation, parameters)
 
     def __enter__(self):
         return self.cursor()
 
     def __exit__(self, *exc):
         self.close()
+
+    async def __aenter__(self):
+        return self.cursor(use_async=True)
+
+    async def __aexit__(self, *exc):
+        await self.close_async()
 
 
 def convert_result_if_required(types, rows):
@@ -201,6 +229,7 @@ class Cursor(object):
         if path == "query":
             path = "query/sql"
         self.url = parse.urlunparse((scheme, f"{host}:{port}", path, None, None, None))
+        self.use_async = use_async
 
         # This read/write attribute specifies the number of rows to fetch at a
         # time with .fetchmany(). It defaults to 1 meaning to fetch a single
@@ -223,7 +252,7 @@ class Cursor(object):
         else:
             self._ignore_exception_error_codes = []
 
-        if use_async:
+        if self.use_async:
             self.session = httpx.AsyncClient(verify=verify_ssl)
         else:
             self.session = httpx.Client(verify=verify_ssl)
@@ -251,7 +280,7 @@ class Cursor(object):
     @check_closed
     async def close_async(self):
         """Close the cursor."""
-        await self.session.close()
+        await self.session.aclose()
         self.closed = True
 
     def is_valid_exception(self, e):
