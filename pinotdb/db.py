@@ -9,8 +9,7 @@ from collections import namedtuple, OrderedDict
 from enum import Enum
 from pprint import pformat
 
-import aiohttp
-import requests
+import httpx
 from six import string_types
 from six.moves.urllib import parse
 
@@ -162,11 +161,11 @@ class Connection(object):
         cursor = self.cursor()
         return await cursor.execute(operation, parameters)
 
-    def __aenter__(self):
+    def __enter__(self):
         return self.cursor()
 
-    async def __aexit__(self, *exc):
-        await self.close()
+    def __exit__(self, *exc):
+        self.close()
 
 
 def convert_result_if_required(types, rows):
@@ -223,24 +222,35 @@ class Cursor(object):
         else:
             self._ignore_exception_error_codes = []
 
-        self.session = aiohttp.ClientSession()
+        self.session = httpx.Client(verify=verify_ssl)
+        self.async_session = httpx.AsyncClient(verify=verify_ssl)
+
         self.auth = None
         if username and password:
-            self.auth = aiohttp.BasicAuth(username, password)
-        self.verify = verify_ssl
+            self.auth = httpx.DigestAuth(username, password)
+
         self.session.headers.update({"Content-Type": "application/json"})
+        self.async_session.headers.update({"Content-Type": "application/json"})
 
         extra_headers = {}
         if extra_request_headers:
             for header in extra_request_headers.split(","):
                 k, v = header.split("=")
                 extra_headers[k] = v
+
         self.session.headers.update(extra_headers)
+        self.async_session.headers.update(extra_headers)
 
     @check_closed
-    async def close(self):
+    def close(self):
         """Close the cursor."""
-        await self.session.close()
+        self.session.close()
+        self.closed = True
+
+    @check_closed
+    async def close_async(self):
+        """Close the cursor."""
+        await self.async_session.close()
         self.closed = True
 
     def is_valid_exception(self, e):
@@ -268,41 +278,36 @@ class Cursor(object):
                 f" {responded} responded, while needed was {needed}"
             )
 
-    @check_closed
-    async def execute(self, operation, parameters=None):
+    def finalize_query_payload(self, operation, parameters=None):
         query = apply_parameters(operation, parameters or {})
 
         if self._preserve_types:
             query += " OPTION(preserveType='true')"
-        payload = {"sql": query}
-        if self._debug:
-            logger.info(
-                f"Submitting the pinot query to {self.url}:\n{query}\n{pformat(payload)}, with {self.session.headers}"
-            )
-        r = await self.session.post(self.url, json=payload,
-                                    verify_ssl=self.verify, auth=self.auth)
+        return {"sql": query}
+
+    def normalize_query_response(self, input_query, query_response):
         try:
-            payload = await r.json()
+            payload = query_response.json()
         except Exception as e:
             raise exceptions.DatabaseError(
-                f"Error when querying {query} from {self.url}, raw response is:\n{r.text}"
+                f"Error when querying {input_query} from {self.url}, raw response is:\n{query_response.text}"
             ) from e
 
         if self._debug:
             logger.info(
-                f"Got the payload of type {type(payload)} with the status code {0 if not r else r.status}:\n{payload}"
+                f"Got the payload of type {type(payload)} with the status code {0 if not query_response else query_response.status_code}:\n{payload}"
             )
 
         num_servers_responded = payload.get("numServersResponded", -1)
         num_servers_queried = payload.get("numServersQueried", -1)
 
         self.check_sufficient_responded(
-            query, num_servers_queried, num_servers_responded
+            input_query, num_servers_queried, num_servers_responded
         )
 
         # raise any error messages
-        if r.status != 200:
-            msg = f"Query\n\n{query}\n\nreturned an error: {r.status}\nFull response is {pformat(payload)}"
+        if query_response.status_code != 200:
+            msg = f"Query\n\n{input_query}\n\nreturned an error: {query_response.status_code}\nFull response is {pformat(payload)}"
             raise exceptions.ProgrammingError(msg)
 
         query_exceptions = [
@@ -341,6 +346,27 @@ class Cursor(object):
             self._results = convert_result_if_required(types, rows)
             self.description = get_description_from_types(column_names, types)
         return self
+
+
+    @check_closed
+    async def execute_async(self, operation, parameters=None):
+        query = self.finalize_query_payload(operation, parameters)
+
+        r = await self.async_session.post(
+            self.url,
+            json=query,
+            auth=self.auth)
+        return self.normalize_query_response(query, r)
+
+    @check_closed
+    def execute(self, operation, parameters=None):
+        query = self.finalize_query_payload(operation, parameters)
+
+        r = self.session.post(
+            self.url,
+            json=query,
+            auth=self.auth)
+        return self.normalize_query_response(query, r)
 
     @check_closed
     def executemany(self, operation, seq_of_parameters=None):
