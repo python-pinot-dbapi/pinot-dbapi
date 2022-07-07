@@ -196,6 +196,7 @@ class Cursor(object):
         preserve_types=False,
         ignore_exception_error_codes="",
         acceptable_respond_fraction=-1,
+        use_async=False,
     ):
         if path == "query":
             path = "query/sql"
@@ -222,15 +223,16 @@ class Cursor(object):
         else:
             self._ignore_exception_error_codes = []
 
-        self.session = httpx.Client(verify=verify_ssl)
-        self.async_session = httpx.AsyncClient(verify=verify_ssl)
+        if use_async:
+            self.session = httpx.AsyncClient(verify=verify_ssl)
+        else:
+            self.session = httpx.Client(verify=verify_ssl)
 
         self.auth = None
         if username and password:
             self.auth = httpx.DigestAuth(username, password)
 
         self.session.headers.update({"Content-Type": "application/json"})
-        self.async_session.headers.update({"Content-Type": "application/json"})
 
         extra_headers = {}
         if extra_request_headers:
@@ -239,7 +241,6 @@ class Cursor(object):
                 extra_headers[k] = v
 
         self.session.headers.update(extra_headers)
-        self.async_session.headers.update(extra_headers)
 
     @check_closed
     def close(self):
@@ -250,7 +251,7 @@ class Cursor(object):
     @check_closed
     async def close_async(self):
         """Close the cursor."""
-        await self.async_session.close()
+        await self.session.close()
         self.closed = True
 
     def is_valid_exception(self, e):
@@ -352,7 +353,7 @@ class Cursor(object):
     async def execute_async(self, operation, parameters=None):
         query = self.finalize_query_payload(operation, parameters)
 
-        r = await self.async_session.post(
+        r = await self.session.post(
             self.url,
             json=query,
             auth=self.auth)
