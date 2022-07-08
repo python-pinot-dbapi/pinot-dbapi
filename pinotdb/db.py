@@ -129,6 +129,10 @@ class Connection(object):
         self._kwargs = kwargs
         self.closed = False
         self.cursors = []
+        self.session = kwargs.get('session')
+        self.is_session_external = False
+        if self.session:
+            self.is_session_external = True
 
     @check_closed
     def close(self):
@@ -137,6 +141,12 @@ class Connection(object):
         for cursor in self.cursors:
             try:
                 cursor.close()
+            except exceptions.Error:
+                pass  # already closed
+        # if we're managing the httpx session, attempt to close it
+        if not self.is_session_external:
+            try:
+                self.session.close()
             except exceptions.Error:
                 pass  # already closed
 
@@ -152,6 +162,12 @@ class Connection(object):
                 pass  # already closed
 
         await asyncio.gather(*close_reqs)
+        # if we're managing the httpx session, attempt to close it
+        if not self.is_session_external:
+            try:
+                await self.session.aclose()
+            except exceptions.Error:
+                pass  # already closed
 
     @check_closed
     def commit(self):
@@ -163,12 +179,19 @@ class Connection(object):
         pass
 
     @check_closed
-    def cursor(self, use_async=False):
+    def cursor(self):
         """Return a new Cursor Object using the connection."""
-        if use_async and not self._kwargs.get('use_async'):
-            cursor = Cursor(*self._args, use_async=use_async, **self._kwargs)
+        if self._kwargs.get('use_async'):
+            if not self.session or self.session.is_closed:
+                self.session = httpx.AsyncClient(
+                    verify=self._kwargs.get('verify_ssl'))
         else:
-            cursor = Cursor(*self._args, **self._kwargs)
+            if not self.session or self.session.is_closed:
+                self.session = httpx.Client(
+                    verify=self._kwargs.get('verify_ssl'))
+
+        self._kwargs['session'] = self.session
+        cursor = Cursor(*self._args, **self._kwargs)
         self.cursors.append(cursor)
 
         return cursor
@@ -180,7 +203,7 @@ class Connection(object):
 
     @check_closed
     async def execute_async(self, operation, parameters=None):
-        cursor = self.cursor(use_async=True)
+        cursor = self.cursor()
         return await cursor.execute_async(operation, parameters)
 
     def __enter__(self):
@@ -190,7 +213,7 @@ class Connection(object):
         self.close()
 
     async def __aenter__(self):
-        return self.cursor(use_async=True)
+        return self.cursor()
 
     async def __aexit__(self, *exc):
         await self.close_async()
@@ -225,11 +248,13 @@ class Cursor(object):
         ignore_exception_error_codes="",
         acceptable_respond_fraction=-1,
         use_async=False,
+        session=None,
     ):
         if path == "query":
             path = "query/sql"
         self.url = parse.urlunparse((scheme, f"{host}:{port}", path, None, None, None))
         self.use_async = use_async
+        self.session = session
 
         # This read/write attribute specifies the number of rows to fetch at a
         # time with .fetchmany(). It defaults to 1 meaning to fetch a single
@@ -252,10 +277,11 @@ class Cursor(object):
         else:
             self._ignore_exception_error_codes = []
 
-        if self.use_async:
-            self.session = httpx.AsyncClient(verify=verify_ssl)
-        else:
-            self.session = httpx.Client(verify=verify_ssl)
+        if not self.session:
+            if self.use_async:
+                self.session = httpx.AsyncClient(verify=verify_ssl)
+            else:
+                self.session = httpx.Client(verify=verify_ssl)
 
         self.auth = None
         if username and password:
