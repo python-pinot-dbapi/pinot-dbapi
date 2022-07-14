@@ -71,6 +71,15 @@ def get_description_from_types(column_names, types):
         for name, tc in zip(column_names, types)
     ]
 
+def get_columns_and_types(column_names, types):
+    return [
+        {
+            'name': name,
+            'type': type
+        }
+        for name, type in zip(column_names, types)
+    ]
+
 
 TypeCodeAndValue = namedtuple(
     "TypeCodeAndValue", ["code", "is_iterable", "coerce_to_string"]
@@ -210,6 +219,7 @@ class Cursor(object):
 
         # these are updated only after a query
         self.description = None
+        self.schema = None
         self.rowcount = -1
         self._results = None
         self._debug = debug
@@ -339,6 +349,7 @@ class Cursor(object):
                 )
             self._results = convert_result_if_required(types, rows)
             self.description = get_description_from_types(column_names, types)
+            self.schema = get_columns_and_types(column_names, column_data_types)
         return self
 
     @check_closed
@@ -380,6 +391,15 @@ class Cursor(object):
         arraysize attribute can affect the performance of this operation.
         """
         return list(self)
+    
+    @check_result
+    @check_closed
+    def fetchwithschema(self):
+        """
+        Fetch results with schema. Schema includs column names and type
+        """
+        return {'schema': self.schema,
+                'results': self._results}
 
     @check_closed
     def setinputsizes(self, sizes):
