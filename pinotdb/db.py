@@ -36,6 +36,17 @@ def connect(*args, **kwargs):
     return Connection(*args, **kwargs)
 
 
+def connect_async(*args, **kwargs):
+    """
+    Constructor for creating a connection to the database.
+
+        >>> conn = connect_async('localhost', 8099)
+        >>> curs = conn.cursor()
+
+    """
+    return AsyncConnection(*args, **kwargs)
+
+
 def check_closed(f):
     """Decorator that checks if connection/cursor is closed."""
 
@@ -132,7 +143,12 @@ class Connection(object):
         self.session = kwargs.get('session')
         self.is_session_external = False
         if self.session:
+            self.verify_session()
             self.is_session_external = True
+
+    def verify_session(self):
+        if self.session:
+            assert isinstance(self.session, httpx.Client)
 
     @check_closed
     def close(self):
@@ -151,25 +167,6 @@ class Connection(object):
                 pass  # already closed
 
     @check_closed
-    async def close_async(self):
-        """Close the connection now."""
-        self.closed = True
-        close_reqs = []
-        for cursor in self.cursors:
-            try:
-                close_reqs.append(cursor.close_async())
-            except exceptions.Error:
-                pass  # already closed
-
-        await asyncio.gather(*close_reqs)
-        # if we're managing the httpx session, attempt to close it
-        if not self.is_session_external:
-            try:
-                await self.session.aclose()
-            except exceptions.Error:
-                pass  # already closed
-
-    @check_closed
     def commit(self):
         """
         Commit any pending transaction to the database.
@@ -181,14 +178,9 @@ class Connection(object):
     @check_closed
     def cursor(self):
         """Return a new Cursor Object using the connection."""
-        if self._kwargs.get('use_async'):
-            if not self.session or self.session.is_closed:
-                self.session = httpx.AsyncClient(
-                    verify=self._kwargs.get('verify_ssl'))
-        else:
-            if not self.session or self.session.is_closed:
-                self.session = httpx.Client(
-                    verify=self._kwargs.get('verify_ssl'))
+        if not self.session or self.session.is_closed:
+            self.session = httpx.Client(
+                verify=self._kwargs.get('verify_ssl'))
 
         self._kwargs['session'] = self.session
         cursor = Cursor(*self._args, **self._kwargs)
@@ -201,22 +193,61 @@ class Connection(object):
         cursor = self.cursor()
         return cursor.execute(operation, parameters)
 
-    @check_closed
-    async def execute_async(self, operation, parameters=None):
-        cursor = self.cursor()
-        return await cursor.execute_async(operation, parameters)
-
     def __enter__(self):
         return self.cursor()
 
     def __exit__(self, *exc):
         self.close()
 
+
+class AsyncConnection(Connection):
+
+    def verify_session(self):
+        if self.session:
+            assert isinstance(self.session, httpx.AsyncClient)
+
+    @check_closed
+    def cursor(self):
+        """Return a new Cursor Object using the connection."""
+        if not self.session or self.session.is_closed:
+            self.session = httpx.AsyncClient(
+                verify=self._kwargs.get('verify_ssl'))
+
+        self._kwargs['session'] = self.session
+        cursor = AsyncCursor(*self._args, **self._kwargs)
+        self.cursors.append(cursor)
+
+        return cursor
+
+    @check_closed
+    async def close(self):
+        """Close the connection now."""
+        self.closed = True
+        close_reqs = []
+        for cursor in self.cursors:
+            try:
+                close_reqs.append(cursor.close())
+            except exceptions.Error:
+                pass  # already closed
+
+        await asyncio.gather(*close_reqs)
+        # if we're managing the httpx session, attempt to close it
+        if not self.is_session_external:
+            try:
+                await self.session.aclose()
+            except exceptions.Error:
+                pass  # already closed
+
+    @check_closed
+    async def execute(self, operation, parameters=None):
+        cursor = self.cursor()
+        return await cursor.execute(operation, parameters)
+
     async def __aenter__(self):
         return self.cursor()
 
     async def __aexit__(self, *exc):
-        await self.close_async()
+        await self.close()
 
 
 def convert_result_if_required(types, rows):
@@ -247,13 +278,11 @@ class Cursor(object):
         preserve_types=False,
         ignore_exception_error_codes="",
         acceptable_respond_fraction=-1,
-        use_async=False,
         session=None,
     ):
         if path == "query":
             path = "query/sql"
         self.url = parse.urlunparse((scheme, f"{host}:{port}", path, None, None, None))
-        self.use_async = use_async
         self.session = session
 
         # This read/write attribute specifies the number of rows to fetch at a
@@ -301,12 +330,6 @@ class Cursor(object):
     def close(self):
         """Close the cursor."""
         self.session.close()
-        self.closed = True
-
-    @check_closed
-    async def close_async(self):
-        """Close the cursor."""
-        await self.session.aclose()
         self.closed = True
 
     def is_valid_exception(self, e):
@@ -405,16 +428,6 @@ class Cursor(object):
 
 
     @check_closed
-    async def execute_async(self, operation, parameters=None):
-        query = self.finalize_query_payload(operation, parameters)
-
-        r = await self.session.post(
-            self.url,
-            json=query,
-            auth=self.auth)
-        return self.normalize_query_response(query, r)
-
-    @check_closed
     def execute(self, operation, parameters=None):
         query = self.finalize_query_payload(operation, parameters)
 
@@ -487,6 +500,24 @@ class Cursor(object):
         return output
 
     next = __next__
+
+
+class AsyncCursor(Cursor):
+    @check_closed
+    async def execute(self, operation, parameters=None):
+        query = self.finalize_query_payload(operation, parameters)
+
+        r = await self.session.post(
+            self.url,
+            json=query,
+            auth=self.auth)
+        return self.normalize_query_response(query, r)
+
+    @check_closed
+    async def close(self):
+        """Close the cursor."""
+        await self.session.aclose()
+        self.closed = True
 
 
 def apply_parameters(operation, parameters):
