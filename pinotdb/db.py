@@ -445,7 +445,7 @@ class Cursor(object):
         r = self.session.post(
             self.url,
             json=query,
-            auth=self.auth)
+            auth=(self.auth._username, self.auth._password))
         return self.normalize_query_response(query, r)
 
     @check_closed
@@ -530,7 +530,7 @@ class AsyncCursor(Cursor):
         r = await self.session.post(
             self.url,
             json=query,
-            auth=self.auth)
+            auth=(self.auth._username, self.auth._password))
         return self.normalize_query_response(query, r)
 
     @check_closed
