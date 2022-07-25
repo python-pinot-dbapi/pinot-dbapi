@@ -19,6 +19,7 @@ AUTHOR = 'Beto Dealmeida, Devesh Agrawal'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
+    'httpx',
     'requests',
     'six',
 ]
