@@ -528,10 +528,16 @@ class AsyncCursor(Cursor):
     async def execute(self, operation, parameters=None):
         query = self.finalize_query_payload(operation, parameters)
 
-        r = await self.session.post(
-            self.url,
-            json=query,
-            auth=(self.auth._username, self.auth._password))
+        if self.auth and self.auth._username and self.auth._password:
+            r = await self.session.post(
+                self.url,
+                json=query,
+                auth=(self.auth._username, self.auth._password))
+        else:
+            r = await self.session.post(
+                self.url,
+                json=query)
+
         return self.normalize_query_response(query, r)
 
     @check_closed

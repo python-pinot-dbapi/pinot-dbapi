@@ -109,7 +109,7 @@ docker run --name pinot-quickstart -p 2123:2123 -p 9000:9000 -p 8000:8000 -d apa
 Once pinot batch quickstart is up, you can run below sample code snippet to query Pinot:
 
 ```bash
-python3 examples/pinot-quickstart-batch.py
+python3 examples/pinot_quickstart_batch.py
 ```
 
 Sample Output:
@@ -146,7 +146,7 @@ docker run --name pinot-quickstart -p 2123:2123 -p 9000:9000 -p 8000:8000 -d apa
 Below is an example against Pinot Quickstart Hybrid:
 
 ```bash
-python3 examples/pinot-quickstart-hybrid.py
+python3 examples/pinot_quickstart_hybrid.py
 ```
 
 ```bash
@@ -193,7 +193,7 @@ Sending SQL: "SELECT OriginCityName, sum(Cancelled) AS sum_cancelled FROM "airli
 Just run below script to query `pinot.live` demo cluster in two ways using pinotdb connect and sqlalchemy.
 
 ```bash
-python3 examples/pinot-live.py
+python3 examples/pinot_live.py
 ```
 
 And response:

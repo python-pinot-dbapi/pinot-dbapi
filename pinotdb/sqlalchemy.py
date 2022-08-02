@@ -4,7 +4,6 @@ import requests
 from requests.auth import HTTPBasicAuth
 from sqlalchemy.engine import default
 from sqlalchemy.sql import compiler
-from sqlalchemy.sql import elements
 from sqlalchemy import types
 
 import pinotdb
