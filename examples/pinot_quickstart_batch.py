@@ -47,7 +47,7 @@ def run_pinot_quickstart_batch_sqlalchemy_example() -> None:
 
     Session = sessionmaker(bind=engine)
     session = Session()
-    query = session.select(
+    query = select(
         [column("playerName"), func.sum(column("runs")).label("sum_runs")],
         from_obj=baseballStats,
         whereclause=text("yearID>=2000"),

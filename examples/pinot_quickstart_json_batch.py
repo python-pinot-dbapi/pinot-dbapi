@@ -65,7 +65,7 @@ def run_quickstart_json_batch_sqlalchemy_example() -> None:
 
     Session = sessionmaker(bind=engine)
     session = Session()
-    query = session.select(["*"],
+    query = select(["*"],
         from_obj=githubEvents,
         limit="10",
     )
@@ -77,7 +77,7 @@ def run_quickstart_json_batch_sqlalchemy_example() -> None:
 
     Session = sessionmaker(bind=engine)
     session = Session()
-    query = session.select([column("created_at_timestamp")],
+    query = select([column("created_at_timestamp")],
         from_obj=githubEvents,
         limit="10",
     )
