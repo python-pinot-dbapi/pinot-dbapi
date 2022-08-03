@@ -130,6 +130,7 @@ class PinotDialect(default.DefaultDialect):
     preparer = PinotIdentifierPareparer
     statement_compiler = PinotCompiler
     type_compiler = PinotTypeCompiler
+    supports_statement_cache = False
     supports_alter = False
     supports_pk_autoincrement = False
     supports_default_values = False

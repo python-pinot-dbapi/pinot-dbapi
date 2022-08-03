@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import importlib
+import io
 
+from contextlib import redirect_stdout, redirect_stderr
 from typing import *
 
-from testing_context import TestCase
+from .testing_context import TestCase
 
 
 class ExampleWrapper(TestCase):
@@ -20,6 +22,11 @@ class ExampleWrapper(TestCase):
             print("==================================")
             print(" Running PinotDB Example Test against: " + test_module.__name__)
             print("==================================")
-            test_module.run_main()
-
-
+            with io.StringIO() as std_out, io.StringIO() as std_err:
+                with redirect_stdout(std_out), redirect_stderr(std_err):
+                    test_module.run_main()
+                std_out_result = std_out.getvalue()
+                print(std_out_result.split("\n")[:5])
+                print("...")
+                std_err_result = std_err.getvalue()
+                assert len(std_err_result) == 0 or std_err_result.find("error") == -1
