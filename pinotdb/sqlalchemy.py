@@ -1,15 +1,9 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 from six.moves.urllib import parse
 
 import requests
 from requests.auth import HTTPBasicAuth
 from sqlalchemy.engine import default
 from sqlalchemy.sql import compiler
-from sqlalchemy.sql import elements
 from sqlalchemy import types
 
 import pinotdb
@@ -136,6 +130,7 @@ class PinotDialect(default.DefaultDialect):
     preparer = PinotIdentifierPareparer
     statement_compiler = PinotCompiler
     type_compiler = PinotTypeCompiler
+    supports_statement_cache = False
     supports_alter = False
     supports_pk_autoincrement = False
     supports_default_values = False

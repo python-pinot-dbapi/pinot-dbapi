@@ -5,12 +5,12 @@ import httpx
 from pinotdb import connect_async
 
 
-async def show_async_features():
-    async with connect_async(host='localhost', port=8099, path='/query/sql',
-                       scheme='http', verify_ssl=False) as conn:
+async def run_pinot_async_example():
+    async with connect_async(host='localhost', port=8000, path='/query/sql',
+                             scheme='http', verify_ssl=False) as conn:
         curs = await conn.execute("""
             SELECT count(*)
-              FROM calls
+              FROM baseballStats
              LIMIT 10
         """)
         for row in curs:
@@ -19,7 +19,7 @@ async def show_async_features():
     # Externally managed client session can also be passed to connect_async
     session = httpx.AsyncClient(verify=False)
     conn = connect_async(
-        host='localhost', port=8099, path='/query/sql', scheme='http',
+        host='localhost', port=8000, path='/query/sql', scheme='http',
         verify_ssl=False, session=session)
 
     # launch 10 requests in parallel spanning a limit/offset range
@@ -29,8 +29,8 @@ async def show_async_features():
     start = time.perf_counter()
     for i in range(num_requests):
         req = conn.execute(f"""
-              SELECT count(*)
-              FROM calls
+              SELECT *
+              FROM baseballStats
               LIMIT 10, {i * step}
         """)
         reqs.append(req)
@@ -50,6 +50,10 @@ async def show_async_features():
     await session.aclose()
 
 
-if __name__ == '__main__':
+def run_main():
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(foo())
+    loop.run_until_complete(run_pinot_async_example())
+
+
+if __name__ == '__main__':
+    run_main()
