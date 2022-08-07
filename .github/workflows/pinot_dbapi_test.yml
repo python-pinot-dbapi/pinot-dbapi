@@ -52,6 +52,6 @@ jobs:
           port-forward: 9000
           arguments: QuickStart -type hybrid
       - name: Setup Python Test Env
-        run: .github/workflows/scripts/setup_python_test_env.sh
+        run: .github/scripts/setup_python_test_env.sh
       - name: Run Python Tests
-        run: .github/workflows/scripts/run_python_test.sh
+        run: .github/scripts/run_python_test.sh
