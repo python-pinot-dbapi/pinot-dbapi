@@ -1,0 +1,57 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Pinot DB API Tests
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - "contrib/**"
+      - "docs/**"
+      - "**.md"
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - "contrib/**"
+      - "docs/**"
+      - "**.md"
+
+jobs:
+  pinot-dbapi-test:
+    runs-on: ubuntu-latest
+    name: Pinot DB API Test Set
+    steps:
+      - uses: actions/checkout@v2
+      - name: Pull Pinot Docker Image
+        uses: ./.github/actions/pull-docker-image
+        with:
+          docker-image: apachepinot/pinot:latest
+      - name: Runs Pinot Docker Image
+        uses: ./.github/actions/run-docker-image
+        with:
+          docker-image: apachepinot/pinot:latest
+          port-forward: 9000
+          arguments: QuickStart -type hybrid
+      - name: Setup Python Test Env
+        run: .github/scripts/setup_python_test_env.sh
+      - name: Run Python Tests
+        run: .github/scripts/run_python_test.sh

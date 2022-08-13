@@ -1,0 +1,26 @@
+name: Run docker image
+
+description: execute a specific docker image with its entry point.
+
+inputs:
+  docker-image:
+    description: the image downloaded
+    required: true
+  forward-port:
+    description: the entry port to interact with the docker image service
+    required: true
+  arguments:
+    description: arguments passed into the docker image start up script
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Run Docker image
+      shell: bash
+      env:
+        DOCKER_IMAGE: ${{ inputs.docker-image }}
+        PORT_FORWARD: ${{ inputs.forward-port }}
+        ARGS: ${{ inputs.arguments }}
+      run: |
+        docker run -p "${PORT_FORWARD}:${PORT_FORWARD}" "${DOCKER_IMAGE}" "${ARGS}"
