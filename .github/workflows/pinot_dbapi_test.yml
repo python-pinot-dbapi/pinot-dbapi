@@ -49,8 +49,9 @@ jobs:
         uses: ./.github/actions/run-docker-image
         with:
           docker-image: apachepinot/pinot:latest
-          port-forward: 9000
-          arguments: QuickStart -type hybrid
+          controller-forward-port: 9000
+          broker-forward-port: 8000
+          arguments: QuickStart -type HYBRID
       - name: Setup Python Test Env
         run: .github/scripts/setup_python_test_env.sh
       - name: Run Python Tests
