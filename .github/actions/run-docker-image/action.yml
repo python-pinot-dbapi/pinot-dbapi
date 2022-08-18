@@ -6,8 +6,11 @@ inputs:
   docker-image:
     description: the image downloaded
     required: true
-  forward-port:
-    description: the entry port to interact with the docker image service
+  controller-forward-port:
+    description: the entry port to interact with the pinot controller
+    required: true
+  broker-forward-port:
+    description: the entry port to interact with the pinot broker
     required: true
   arguments:
     description: arguments passed into the docker image start up script
@@ -20,7 +23,8 @@ runs:
       shell: bash
       env:
         DOCKER_IMAGE: ${{ inputs.docker-image }}
-        PORT_FORWARD: ${{ inputs.forward-port }}
+        CONTROLLER_PORT_FORWARD: ${{ inputs.controller-forward-port }}
+        BROKER_PORT_FORWARD: ${{ inputs.broker-forward-port }}
         ARGS: ${{ inputs.arguments }}
       run: |
-        docker run -p "${PORT_FORWARD}:${PORT_FORWARD}" "${DOCKER_IMAGE}" "${ARGS}"
+        docker run -p "${CONTROLLER_PORT_FORWARD}:${CONTROLLER_PORT_FORWARD}" -p "${BROKER_PORT_FORWARD}:${BROKER_PORT_FORWARD}" -d "${DOCKER_IMAGE}" ${ARGS}

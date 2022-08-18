@@ -6,11 +6,13 @@ import io
 from contextlib import redirect_stdout, redirect_stderr
 from typing import *
 
-from .testing_context import TestCase
+from tests.testing_context import TestCase
 
 
 class ExampleWrapper(TestCase):
 
+    # TODO: add rest of the example in
+    # TODO: break each example into individual TestCase subclass
     test_examples: List[str] = ["pinot_quickstart_auth_zk", "pinot_quickstart_batch", "pinot_async"]
 
     # TODO: break this into multiple instantiable TestCase sub classes, one for each example file

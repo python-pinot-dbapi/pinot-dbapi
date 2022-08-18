@@ -49,9 +49,18 @@ jobs:
         uses: ./.github/actions/run-docker-image
         with:
           docker-image: apachepinot/pinot:latest
-          port-forward: 9000
-          arguments: QuickStart -type hybrid
+          controller-forward-port: 9000
+          broker-forward-port: 8000
+          arguments: QuickStart -type BATCH
       - name: Setup Python Test Env
+        env:
+          CONTROLLER_PORT_FORWARD: 9000
+          BROKER_PORT_FORWARD: 8000
         run: .github/scripts/setup_python_test_env.sh
       - name: Run Python Tests
         run: .github/scripts/run_python_test.sh
+      - name: Clean up
+        if: always()
+        shell: bash
+        run: |
+          docker rm $(docker stop $(docker ps -a -q --filter ancestor="apachepinot/pinot:latest" --format="{{.ID}}"))
