@@ -26,13 +26,8 @@ do
   if [ $? -eq 0 ]; then
     COUNT_STAR_RES=`echo "${QUERY_RES}" | jq '.resultTable.rows[0][0]'`
     if [[ "${COUNT_STAR_RES}" =~ ^[0-9]+$ ]] && [ "${COUNT_STAR_RES}" -gt 0 ]; then
-      if [ "${RES_1}" -eq 0 ]; then
-        RES_1="${COUNT_STAR_RES}"
-        continue
-      elif [ "${COUNT_STAR_RES}" -gt "${RES_1}" ]; then
-        PASS=1
-        break
-      fi
+      PASS=1
+      break
     fi
   fi
   echo "QUERY_RES: ${QUERY_RES}"
@@ -40,11 +35,7 @@ do
 done
 
 if [ "${PASS}" -eq 0 ]; then
-  if [ "${RES_1}" -eq 0 ]; then
-    echo 'Hybrid Quickstart test failed: Cannot get correct result for count star query.'
-    exit 1
-  fi
-  echo 'Hybrid Quickstart test failed: Cannot get incremental counts for count star query.'
+  echo 'Quickstart failed: Cannot confirmed count-star result from quickstart table in 5 minutes'
   exit 1
 fi
 echo "Pinot cluster started correctly"
