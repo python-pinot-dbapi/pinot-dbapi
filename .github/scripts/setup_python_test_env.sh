@@ -18,7 +18,6 @@ echo "Ensure Pinot cluster started correctly"
 
 # Wait at most 5 minutes to reach the desired state
 PASS=0
-RES_1=0
 
 for i in $(seq 1 150)
 do

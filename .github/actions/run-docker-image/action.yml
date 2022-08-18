@@ -27,4 +27,4 @@ runs:
         BROKER_PORT_FORWARD: ${{ inputs.broker-forward-port }}
         ARGS: ${{ inputs.arguments }}
       run: |
-        docker run -d -p "${CONTROLLER_PORT_FORWARD}:${CONTROLLER_PORT_FORWARD}" -p "${BROKER_PORT_FORWARD}:${BROKER_PORT_FORWARD}" "${DOCKER_IMAGE}" ${ARGS}
+        docker run -p "${CONTROLLER_PORT_FORWARD}:${CONTROLLER_PORT_FORWARD}" -p "${BROKER_PORT_FORWARD}:${BROKER_PORT_FORWARD}" -d "${DOCKER_IMAGE}" ${ARGS}
