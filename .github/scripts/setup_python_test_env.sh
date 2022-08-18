@@ -9,6 +9,8 @@
 echo "Install Python Packages"
 
 pip install -r ./requirements.txt
+pip install -U urllib3
+
 
 ### ---------------------------------------------------------------------------
 ### Ensure Pinot cluster started correctly.
