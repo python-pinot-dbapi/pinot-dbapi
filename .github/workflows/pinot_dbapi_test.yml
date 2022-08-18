@@ -51,7 +51,7 @@ jobs:
           docker-image: apachepinot/pinot:latest
           controller-forward-port: 9000
           broker-forward-port: 8000
-          arguments: QuickStart -type HYBRID
+          arguments: QuickStart -type BATCH
       - name: Setup Python Test Env
         env:
           CONTROLLER_PORT_FORWARD: 9000

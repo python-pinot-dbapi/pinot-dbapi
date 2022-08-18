@@ -25,7 +25,7 @@ RES_1=0
 
 for i in $(seq 1 150)
 do
-  QUERY_RES=`curl -X POST --header 'Accept: application/json' -d '{"sql":"select count(*) from airlineStats limit 1"}' http://localhost:${BROKER_PORT_FORWARD}/query/sql`
+  QUERY_RES=`curl -X POST --header 'Accept: application/json' -d '{"sql":"select count(*) from baseballStats limit 1"}' http://localhost:${BROKER_PORT_FORWARD}/query/sql`
   if [ $? -eq 0 ]; then
     COUNT_STAR_RES=`echo "${QUERY_RES}" | jq '.resultTable.rows[0][0]'`
     if [[ "${COUNT_STAR_RES}" =~ ^[0-9]+$ ]] && [ "${COUNT_STAR_RES}" -gt 0 ]; then
