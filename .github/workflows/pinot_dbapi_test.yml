@@ -53,6 +53,9 @@ jobs:
           broker-forward-port: 8000
           arguments: QuickStart -type HYBRID
       - name: Setup Python Test Env
+        env:
+          CONTROLLER_PORT_FORWARD: ${{ inputs.controller-forward-port }}
+          BROKER_PORT_FORWARD: ${{ inputs.broker-forward-port }}
         run: .github/scripts/setup_python_test_env.sh
       - name: Run Python Tests
         run: .github/scripts/run_python_test.sh

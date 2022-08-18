@@ -6,7 +6,7 @@ import io
 from contextlib import redirect_stdout, redirect_stderr
 from typing import *
 
-from .testing_context import TestCase
+from tests.testing_context import TestCase
 
 
 class ExampleWrapper(TestCase):
