@@ -16,9 +16,6 @@ pip install -r ./requirements.txt
 
 echo "Ensure Pinot cluster started correctly"
 
-# Wait for 1 minutes after docker Pinot cluster started in detached mode
-sleep 60
-
 # Wait at most 5 minutes to reach the desired state
 PASS=0
 RES_1=0
@@ -38,6 +35,7 @@ do
       fi
     fi
   fi
+  echo "QUERY_RES: ${QUERY_RES}"
   sleep 2
 done
 
