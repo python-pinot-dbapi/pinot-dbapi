@@ -54,8 +54,13 @@ jobs:
           arguments: QuickStart -type HYBRID
       - name: Setup Python Test Env
         env:
-          CONTROLLER_PORT_FORWARD: ${{ inputs.controller-forward-port }}
-          BROKER_PORT_FORWARD: ${{ inputs.broker-forward-port }}
+          CONTROLLER_PORT_FORWARD: 9000
+          BROKER_PORT_FORWARD: 8000
         run: .github/scripts/setup_python_test_env.sh
       - name: Run Python Tests
         run: .github/scripts/run_python_test.sh
+      - name: Clean up
+        if: always()
+        shell: bash
+        run: |
+          docker rm $(docker stop $(docker ps -a -q --filter ancestor="apachepinot/pinot:latest" --format="{{.ID}}"))
