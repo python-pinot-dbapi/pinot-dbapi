@@ -6,11 +6,15 @@
 ### Install python packages
 ### ---------------------------------------------------------------------------
 
+echo "Install Python Packages"
+
 pip install -r ./requirements.txt
 
 ### ---------------------------------------------------------------------------
 ### Ensure Pinot cluster started correctly.
 ### ---------------------------------------------------------------------------
+
+echo "Ensure Pinot cluster started correctly"
 
 # Wait for 1 minutes after docker Pinot cluster started in detached mode
 sleep 60
@@ -45,3 +49,4 @@ if [ "${PASS}" -eq 0 ]; then
   echo 'Hybrid Quickstart test failed: Cannot get incremental counts for count star query.'
   exit 1
 fi
+echo "Pinot cluster started correctly"
