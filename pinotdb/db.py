@@ -435,18 +435,20 @@ class Cursor(object):
 
 
     @check_closed
-    def execute(self, operation, parameters=None):
+    def execute(self, operation, parameters=None, **kwargs):
         query = self.finalize_query_payload(operation, parameters)
 
         if self.auth and self.auth._username and self.auth._password:
             r = self.session.post(
                 self.url,
                 json=query,
-                auth=(self.auth._username, self.auth._password))
+                auth=(self.auth._username, self.auth._password),
+                **kwargs)
         else:
             r = self.session.post(
                 self.url,
-                json=query)
+                json=query,
+                **kwargs)
 
         return self.normalize_query_response(query, r)
 
