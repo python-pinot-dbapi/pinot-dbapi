@@ -283,6 +283,7 @@ class Cursor(object):
         ignore_exception_error_codes="",
         acceptable_respond_fraction=-1,
         session=None,
+        **kwargs
     ):
         if path == "query":
             path = "query/sql"
@@ -313,9 +314,9 @@ class Cursor(object):
 
         if not self.session:
             if self.use_async:
-                self.session = httpx.AsyncClient(verify=verify_ssl)
+                self.session = httpx.AsyncClient(verify=verify_ssl, **kwargs)
             else:
-                self.session = httpx.Client(verify=verify_ssl)
+                self.session = httpx.Client(verify=verify_ssl, **kwargs)
 
         self.auth = None
         if username and password:
@@ -434,18 +435,20 @@ class Cursor(object):
 
 
     @check_closed
-    def execute(self, operation, parameters=None):
+    def execute(self, operation, parameters=None, **kwargs):
         query = self.finalize_query_payload(operation, parameters)
 
         if self.auth and self.auth._username and self.auth._password:
             r = self.session.post(
                 self.url,
                 json=query,
-                auth=(self.auth._username, self.auth._password))
+                auth=(self.auth._username, self.auth._password),
+                **kwargs)
         else:
             r = self.session.post(
                 self.url,
-                json=query)
+                json=query,
+                **kwargs)
 
         return self.normalize_query_response(query, r)
 
@@ -525,18 +528,20 @@ class Cursor(object):
 
 class AsyncCursor(Cursor):
     @check_closed
-    async def execute(self, operation, parameters=None):
+    async def execute(self, operation, parameters=None, **kwargs):
         query = self.finalize_query_payload(operation, parameters)
 
         if self.auth and self.auth._username and self.auth._password:
             r = await self.session.post(
                 self.url,
                 json=query,
-                auth=(self.auth._username, self.auth._password))
+                auth=(self.auth._username, self.auth._password),
+                **kwargs)
         else:
             r = await self.session.post(
                 self.url,
-                json=query)
+                json=query,
+                **kwargs)
 
         return self.normalize_query_response(query, r)
 
