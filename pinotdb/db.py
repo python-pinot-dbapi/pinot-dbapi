@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import json
 import logging
 from collections import namedtuple, OrderedDict
@@ -18,6 +19,7 @@ class Type(Enum):
     STRING = 1
     NUMBER = 2
     BOOLEAN = 3
+    TIMESTAMP = 4
 
 
 def connect(*args, **kwargs):
@@ -89,7 +91,7 @@ def get_columns_and_types(column_names, types):
 
 
 TypeCodeAndValue = namedtuple(
-    "TypeCodeAndValue", ["code", "is_iterable", "coerce_to_string"]
+    "TypeCodeAndValue", ["code", "is_iterable", "needs_conversion"]
 )
 
 
@@ -107,6 +109,10 @@ def get_types_from_column_data_types(column_data_types):
             types[column_index] = TypeCodeAndValue(Type.NUMBER, is_iterable, False)
         elif data_type == "STRING" or data_type == "BYTES":
             types[column_index] = TypeCodeAndValue(Type.STRING, is_iterable, False)
+        elif data_type == "BOOLEAN":
+            types[column_index] = TypeCodeAndValue(Type.BOOLEAN, is_iterable, False)
+        elif data_type == "TIMESTAMP":
+            types[column_index] = TypeCodeAndValue(Type.TIMESTAMP, is_iterable, True)
         else:
             types[column_index] = TypeCodeAndValue(Type.STRING, is_iterable, True)
     return types
@@ -254,16 +260,22 @@ class AsyncConnection(Connection):
         await self.close()
 
 
-def convert_result_if_required(types, rows):
-    coercion_needed = any(t.coerce_to_string for t in types)
-    if not coercion_needed:
+def convert_result_if_required(data_types, rows):
+    needs_conversion = any(t.needs_conversion for t in data_types)
+    if not needs_conversion:
         return rows
-    for i, t in enumerate(types):
-        if t.coerce_to_string:
+    for i, t in enumerate(data_types):
+        if t.needs_conversion:
             for row in rows:
-                row[i] = json.dumps(row[i])
+                row[i] = convert_result(t, json.dumps(row[i]))
     return rows
 
+
+def convert_result(data_type, raw_row):
+    if data_type == Type.TIMESTAMP:
+        return datetime.datetime.fromisoformat(raw_row)
+    else:
+        return raw_row
 
 class Cursor(object):
     """Connection cursor."""
