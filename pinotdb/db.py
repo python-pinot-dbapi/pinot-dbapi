@@ -272,8 +272,9 @@ def convert_result_if_required(data_types, rows):
 
 
 def convert_result(data_type, raw_row):
-    if data_type == Type.TIMESTAMP:
-        return datetime.datetime.fromisoformat(raw_row)
+    if data_type.code == Type.TIMESTAMP:
+        # Pinot returns TIMESTAMP as STRING with double quote.
+        return datetime.datetime.strptime(raw_row, '"%Y-%m-%d %H:%M:%S.%f"')
     else:
         return raw_row
 
