@@ -10,14 +10,25 @@ from sqlalchemy.orm import sessionmaker
 ## docker run --name pinot-quickstart -p 2123:2123 -p 9000:9000 -p 8000:8000 \
 ##    -d apachepinot/pinot:latest QuickStart -type batch
 
+
 def run_pinot_quickstart_batch_example() -> None:
     conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http")
     curs = conn.cursor()
-    sql = "SELECT * FROM baseballStats LIMIT 5"
-    print(f"Sending SQL to Pinot: {sql}")
-    curs.execute(sql)
-    for row in curs:
-        print(row)
+
+    tables = [
+        "airlineStats",
+        "baseballStats",
+        "dimBaseballTeams",
+        "githubComplexTypeEvents",
+        "githubEvents",
+        "starbucksStores",
+    ]
+    for table in tables:
+        sql = f"SELECT * FROM {table} LIMIT 5"
+        print(f"Sending SQL to Pinot: {sql}")
+        curs.execute(sql)
+        for row in curs:
+            print(row)
 
     sql = "SELECT playerName, sum(runs) FROM baseballStats WHERE yearID>=2000 GROUP BY playerName LIMIT 5"
     print(f"\nSending SQL to Pinot: {sql}")
@@ -31,6 +42,7 @@ def run_pinot_quickstart_batch_example() -> None:
     for row in curs:
         print(row)
 
+
 def run_pinot_quickstart_batch_sqlalchemy_example() -> None:
     registry.register("pinot", "pinotdb.sqlalchemy", "PinotDialect")
 
@@ -42,7 +54,7 @@ def run_pinot_quickstart_batch_sqlalchemy_example() -> None:
 
     baseballStats = Table("baseballStats", MetaData(bind=engine), autoload=True)
     print(f"\nSending Count(*) SQL to Pinot")
-    query=select([func.count("*")], from_obj=baseballStats)
+    query = select([func.count("*")], from_obj=baseballStats)
     print(engine.execute(query).scalar())
 
     Session = sessionmaker(bind=engine)
@@ -66,5 +78,5 @@ def run_main():
     run_pinot_quickstart_batch_sqlalchemy_example()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run_main()
