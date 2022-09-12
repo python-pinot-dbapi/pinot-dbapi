@@ -11,25 +11,45 @@ from sqlalchemy.orm import sessionmaker
 ## docker run --name pinot-quickstart -p 2123:2123 -p 9000:9000 -p 8000:8000 \
 ##    -d apachepinot/pinot:latest QuickStart -type AUTH-ZK
 
-def run_pinot_quickstart_batch_example() -> None:
-    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http", username="admin",
-                   password="verysecret")
-    curs = conn.cursor()
-    sql = "SELECT * FROM baseballStats LIMIT 5"
-    print(f"Sending SQL to Pinot: {sql}")
-    curs.execute(sql)
-    for row in curs:
-        print(row)
 
-    sql = "SELECT playerName, sum(runs) FROM baseballStats" \
-          " WHERE yearID>=2000 GROUP BY playerName LIMIT 5"
+def run_pinot_quickstart_batch_example() -> None:
+    conn = connect(
+        host="localhost",
+        port=8000,
+        path="/query/sql",
+        scheme="http",
+        username="admin",
+        password="verysecret",
+    )
+    curs = conn.cursor()
+    tables = [
+        "airlineStats",
+        "baseballStats",
+        "dimBaseballTeams",
+        "githubComplexTypeEvents",
+        "githubEvents",
+        "starbucksStores",
+    ]
+    for table in tables:
+        sql = f"SELECT * FROM {table} LIMIT 5"
+        print(f"Sending SQL to Pinot: {sql}")
+        curs.execute(sql)
+        for row in curs:
+            print(row)
+
+    sql = (
+        "SELECT playerName, sum(runs) FROM baseballStats"
+        " WHERE yearID>=2000 GROUP BY playerName LIMIT 5"
+    )
     print(f"\nSending SQL to Pinot: {sql}")
     curs.execute(sql)
     for row in curs:
         print(row)
 
-    sql = "SELECT playerName,sum(runs) AS sum_runs FROM baseballStats" \
-          " WHERE yearID>=2000 GROUP BY playerName ORDER BY sum_runs DESC LIMIT 5"
+    sql = (
+        "SELECT playerName,sum(runs) AS sum_runs FROM baseballStats"
+        " WHERE yearID>=2000 GROUP BY playerName ORDER BY sum_runs DESC LIMIT 5"
+    )
     print(f"\nSending SQL to Pinot: {sql}")
     curs.execute(sql)
     for row in curs:
@@ -72,5 +92,5 @@ def run_main():
     run_pinot_quickstart_batch_sqlalchemy_example()
 
 
-if __name__ == '__main__':
-        run_main()
+if __name__ == "__main__":
+    run_main()
