@@ -1,5 +1,5 @@
 import asyncio
-import datetime
+import ciso8601
 import json
 import logging
 from collections import namedtuple, OrderedDict
@@ -274,7 +274,7 @@ def convert_result_if_required(data_types, rows):
 def convert_result(data_type, raw_row):
     if data_type.code == Type.TIMESTAMP:
         # Pinot returns TIMESTAMP as STRING with double quote.
-        return datetime.datetime.strptime(raw_row, '"%Y-%m-%d %H:%M:%S.%f"')
+        return ciso8601.parse_datetime(raw_row.strip('"'))
     else:
         return raw_row
 
