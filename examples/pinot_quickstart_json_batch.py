@@ -6,9 +6,11 @@ from sqlalchemy.engine import create_engine
 from sqlalchemy.schema import *
 from sqlalchemy.orm import sessionmaker
 
+
 ## Start Pinot Quickstart Batch
 ## docker run --name pinot-quickstart -p 2123:2123 -p 9000:9000 -p 8000:8000 \
 ##    -d apachepinot/pinot:latest QuickStart -type batch
+
 
 def run_quickstart_json_batch_example() -> None:
     conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http")
@@ -48,7 +50,7 @@ def run_quickstart_json_batch_sqlalchemy_example() -> None:
 
     Session = sessionmaker(bind=engine)
     session = Session()
-    query = session.select(
+    query = select(
         [text("json_extract_scalar(repo, \'$.name\', \'STRING\')"), func.count("*")],
         from_obj=githubEvents,
         whereclause=text("json_match(actor, '\"$.login\"=''LombiqBot''')"),
