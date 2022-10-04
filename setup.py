@@ -24,6 +24,10 @@ REQUIRED = [
     'requests',
     'six',
 ]
+TEST_REQUIRED = [
+    'parameterized'
+]
+
 if sys.version_info < (3, 6):
     sys.exit('Sorry, Python < 3.6 is not supported')
 
@@ -114,6 +118,7 @@ setup(
         ],
     },
     install_requires=REQUIRED,
+    tests_require=TEST_REQUIRED,
     extras_require={
         'dev': development_extras,
         'sqlalchemy': sqlalchemy_extras,

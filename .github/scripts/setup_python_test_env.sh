@@ -9,6 +9,8 @@
 echo "Install Python Packages"
 
 pip install -r ./requirements.txt
+pip install -r ./requirements-test.txt
+# -- need to upgrade urllib3 for GHA environment.
 pip install -U urllib3
 
 
