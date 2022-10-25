@@ -1,5 +1,5 @@
 init: lock
-	poetry install
+	poetry install --all-extras
 
 test:
 	tox
