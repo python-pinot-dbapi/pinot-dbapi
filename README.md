@@ -213,6 +213,10 @@ Sending SQL: "SELECT playerName, sum(runs) AS sum_runs FROM "baseballStats" WHER
 [(19790, 581.0), (19977, 522.0), (19690, 520.0), (19805, 481.0), (20409, 410.0), (21171, 385.0), (19930, 378.0), (20355, 377.0), (19393, 326.0), (20437, 268.0)]
 ```
 
+## Development
+
+In order to develop this library, you need to have installed Poetry and tox.
+
 ## Release
 
 Update pinotdb/**version**.py file to set the desired library version, e.g. 0.3.4.
