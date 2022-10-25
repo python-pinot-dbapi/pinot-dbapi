@@ -1,10 +1,10 @@
-init: requirements
-	pip install -r requirements.txt
+init: lock
+	poetry install
 
 test:
-	nosetests tests
+	tox
 
-requirements:
-	pipreqs --force pinotdb --savepath requirements.txt
+lock:
+	poetry lock
 
-.PHONY: init test requirements
+.PHONY: init test lock
