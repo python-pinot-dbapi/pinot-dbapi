@@ -8,11 +8,9 @@
 
 echo "Install Python Packages"
 
-pip install poetry
+pip install poetry tox
 
 poetry install
-# -- need to upgrade urllib3 for GHA environment.
-pip install -U urllib3
 
 
 ### ---------------------------------------------------------------------------
