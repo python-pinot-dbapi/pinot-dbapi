@@ -2,7 +2,7 @@ init: lock
 	poetry install --all-extras
 
 test:
-	tox
+	poetry run pytest
 
 lock:
 	poetry lock

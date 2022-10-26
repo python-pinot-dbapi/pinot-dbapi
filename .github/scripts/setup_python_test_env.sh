@@ -8,7 +8,8 @@
 
 echo "Install tox for tests"
 
-pip install tox
+pip install poetry
+poetry install --all-extras
 
 
 ### ---------------------------------------------------------------------------
