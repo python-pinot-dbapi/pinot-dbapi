@@ -6,10 +6,9 @@
 ### Install python packages
 ### ---------------------------------------------------------------------------
 
-echo "Install tox for tests"
+echo "Install packages"
 
-pip install poetry
-poetry install --all-extras
+make init
 
 
 ### ---------------------------------------------------------------------------
