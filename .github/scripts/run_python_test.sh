@@ -5,4 +5,4 @@
 ### Run unit-test
 ### ---------------------------------------------------------------------------
 
-python -m unittest tests/test_wrap_example.py
+tox
