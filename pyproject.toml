@@ -13,9 +13,10 @@ python = ">=3.7,<4"
 ciso8601 = "^2.2.0"
 httpx = "^0.23.0"
 sqlalchemy = { version = ">=1.4", optional = true }
+requests = "^2.28.1"
 
 [tool.poetry.extras]
-sqlalchemy = ["sqlalchemy"]
+sqlalchemy = ["sqlalchemy", "requests"]
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^6.5.0"
