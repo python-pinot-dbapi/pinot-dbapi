@@ -217,18 +217,29 @@ Sending SQL: "SELECT playerName, sum(runs) AS sum_runs FROM "baseballStats" WHER
 
 In order to develop this library, you need to have installed Poetry and tox.
 
+After you make sure you have them installed, test the library:
+
+1. Run the Pinot QuickStart (for integration tests): `$ make run-pinot`
+2. On a separate shell, run: `$ make init`
+3. Then: `$ make test`
+
 ## Release
 
-Update pinotdb/**version**.py file to set the desired library version, e.g. 0.3.4.
-
-Run to build the distribution and test it locally.
-
-```
-python3 setup.py sdist
-```
-
-run below command to build the distribution and upload it to [pypi pinotdb](https://pypi.org/project/pinotdb/)
+Bump the project to whichever next version is more suitable according to
+[SemVer](https://semver.org/). For example, to bump the patch version:
 
 ```
-python3 setup.py sdist upload
+$ poetry version patch
+```
+
+Run to build the distribution:
+
+```
+$ poetry build
+```
+
+Then publish it to [pinotdb in PyPI](https://pypi.org/project/pinotdb/):
+
+```
+$ poetry publish
 ```
