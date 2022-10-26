@@ -40,10 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python:
-          - 3.7
-          - 3.8
-          - 3.9
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
     name: Pinot DB API Test Set
     steps:
       - uses: actions/checkout@v2
@@ -58,11 +55,10 @@ jobs:
           controller-forward-port: 9000
           broker-forward-port: 8000
           arguments: QuickStart -type BATCH
-      - name: Install relevant Python version
-        uses: gabrielfalcao/pyenv-action@v9
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
         with:
-          default: "${{ matrix.python }}"
-          command: pip install -U pip
+          python-version: ${{ matrix.python-version }}
       - name: Setup Python Test Env
         env:
           CONTROLLER_PORT_FORWARD: 9000
