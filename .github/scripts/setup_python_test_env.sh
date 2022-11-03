@@ -6,12 +6,9 @@
 ### Install python packages
 ### ---------------------------------------------------------------------------
 
-echo "Install Python Packages"
+echo "Install packages"
 
-pip install -r ./requirements.txt
-pip install -r ./requirements-test.txt
-# -- need to upgrade urllib3 for GHA environment.
-pip install -U urllib3
+make init
 
 
 ### ---------------------------------------------------------------------------

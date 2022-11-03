@@ -213,18 +213,33 @@ Sending SQL: "SELECT playerName, sum(runs) AS sum_runs FROM "baseballStats" WHER
 [(19790, 581.0), (19977, 522.0), (19690, 520.0), (19805, 481.0), (20409, 410.0), (21171, 385.0), (19930, 378.0), (20355, 377.0), (19393, 326.0), (20437, 268.0)]
 ```
 
+## Development
+
+In order to develop this library, you need to have installed Poetry and tox.
+
+After you make sure you have them installed, test the library:
+
+1. Run the Pinot QuickStart (for integration tests): `$ make run-pinot`
+2. On a separate shell, run: `$ make init`
+3. Then: `$ make test`
+
 ## Release
 
-Update pinotdb/**version**.py file to set the desired library version, e.g. 0.3.4.
-
-Run to build the distribution and test it locally.
-
-```
-python3 setup.py sdist
-```
-
-run below command to build the distribution and upload it to [pypi pinotdb](https://pypi.org/project/pinotdb/)
+Bump the project to whichever next version is more suitable according to
+[SemVer](https://semver.org/). For example, to bump the patch version:
 
 ```
-python3 setup.py sdist upload
+$ poetry version patch
+```
+
+Run to build the distribution:
+
+```
+$ poetry build
+```
+
+Then publish it to [pinotdb in PyPI](https://pypi.org/project/pinotdb/):
+
+```
+$ poetry publish
 ```
