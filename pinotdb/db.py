@@ -376,12 +376,16 @@ class Cursor(object):
                 f" {responded} responded, while needed was {needed}"
             )
 
-    def finalize_query_payload(self, operation, parameters=None):
+    def finalize_query_payload(self, operation, parameters=None, queryOptions=None):
         query = apply_parameters(operation, parameters or {})
 
         if self._preserve_types:
             query += " OPTION(preserveType='true')"
-        return {"sql": query}
+
+        if queryOptions:
+            return {"sql": query, "queryOptions": queryOptions}
+        else:
+            return {"sql": query}
 
     def normalize_query_response(self, input_query, query_response):
         try:
@@ -448,8 +452,8 @@ class Cursor(object):
 
 
     @check_closed
-    def execute(self, operation, parameters=None, **kwargs):
-        query = self.finalize_query_payload(operation, parameters)
+    def execute(self, operation, parameters=None, queryOptions=None, **kwargs):
+        query = self.finalize_query_payload(operation, parameters, queryOptions)
 
         if self.auth and self.auth._username and self.auth._password:
             r = self.session.post(
@@ -541,8 +545,8 @@ class Cursor(object):
 
 class AsyncCursor(Cursor):
     @check_closed
-    async def execute(self, operation, parameters=None, **kwargs):
-        query = self.finalize_query_payload(operation, parameters)
+    async def execute(self, operation, parameters=None, queryOptions=None, **kwargs):
+        query = self.finalize_query_payload(operation, parameters, queryOptions)
 
         if self.auth and self.auth._username and self.auth._password:
             r = await self.session.post(

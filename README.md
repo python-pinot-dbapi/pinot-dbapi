@@ -11,7 +11,8 @@ Current supported Pinot version: 0.9.3.
 ```python
 from pinotdb import connect
 
-conn = connect(host='localhost', port=8099, path='/query/sql', scheme='http')
+# this assumes 9000 is the controller port
+conn = connect(host='localhost', port=9000, path='/sql', scheme='http')
 curs = conn.cursor()
 curs.execute("""
     SELECT place,
@@ -29,7 +30,8 @@ For HTTPS:
 ```python
 from pinotdb import connect
 
-conn = connect(host='localhost', port=443, path='/query/sql', scheme='https')
+# this assumes that 443 is the controller port
+conn = connect(host='localhost', port=443, path='/sql', scheme='https')
 curs = conn.cursor()
 curs.execute("""
     SELECT place,
@@ -46,6 +48,12 @@ Pinot also supports basic auth, e.g.
 
 ```python
 conn = connect(host="localhost", port=443, path="/query/sql", scheme="https", username="my-user", password="my-password", verify_ssl=True)
+```
+
+To pass in additional query parameters (such as `useMultistageEngine=true`) you may pass
+them in as part of the `execute` method. For example:
+```python
+curs.execute("select * from airlineStats air limit 10", queryOptions="useMultistageEngine=true")
 ```
 
 ### Using SQLAlchemy:
