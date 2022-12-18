@@ -139,7 +139,7 @@ def is_iterable(value):
         return False
 
 
-class Connection(object):
+class Connection:
 
     """Connection to a Pinot database."""
 
@@ -278,7 +278,7 @@ def convert_result(data_type, raw_row):
     else:
         return raw_row
 
-class Cursor(object):
+class Cursor:
     """Connection cursor."""
 
     def __init__(
