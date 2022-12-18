@@ -46,6 +46,7 @@ def connect_async(*args, **kwargs):
 def check_closed(f):
     """Decorator that checks if connection/cursor is closed."""
 
+    # TODO: make sure the decorated function is properly wrapped.
     def g(self, *args, **kwargs):
         if self.closed:
             raise exceptions.Error(f"{self.__class__.__name__} already closed")
@@ -57,6 +58,7 @@ def check_closed(f):
 def check_result(f):
     """Decorator that checks if the cursor has results from `execute`."""
 
+    # TODO: make sure the decorated function is properly wrapped.
     def g(self, *args, **kwargs):
         if self._results is None:
             raise exceptions.Error("Called before `execute`")
@@ -169,6 +171,9 @@ class Connection:
                 pass  # already closed
         # if we're managing the httpx session, attempt to close it
         if not self.is_session_external:
+            # TODO: This except clause has no point, as the session is always
+            #  provided by httpx and will never raise a pinotdb exception.
+            #  We should remove this.
             try:
                 self.session.close()
             except exceptions.Error:
@@ -325,6 +330,7 @@ class Cursor:
             self._ignore_exception_error_codes = []
 
         if not self.session:
+            # TODO: this property isn't defined anywhere, needs to be fixed.
             if self.use_async:
                 self.session = httpx.AsyncClient(verify=verify_ssl, **kwargs)
             else:
@@ -347,6 +353,7 @@ class Cursor:
     @check_closed
     def close(self):
         """Close the cursor."""
+        # TODO: Check if the session actually exists, first.
         self.session.close()
         self.closed = True
 
