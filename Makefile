@@ -4,6 +4,12 @@ init: poetry lock
 test:
 	poetry run pytest
 
+test-integration:
+	poetry run pytest tests/integration/
+
+test-unit:
+	poetry run pytest tests/unit/
+
 lock:
 	poetry lock
 
