@@ -140,7 +140,6 @@ def is_iterable(value):
 
 
 class Connection:
-
     """Connection to a Pinot database."""
 
     def __init__(self, *args, **kwargs):
