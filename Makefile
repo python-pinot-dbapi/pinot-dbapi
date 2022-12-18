@@ -10,6 +10,9 @@ test-integration:
 test-unit:
 	poetry run pytest tests/unit/
 
+lint:
+	poetry run flake8 pinotdb
+
 lock:
 	poetry lock
 

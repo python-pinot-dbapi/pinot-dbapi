@@ -25,6 +25,7 @@ pytest-cov = "^4.0.0"
 parameterized = "^0.8.1"
 tox = "^3.26.0"
 urllib3 = "^1.26.12"
+flake8 = "^5"
 
 [tool.poetry.plugins."sqlalchemy.dialects"]
 pinot = "pinotdb.sqlalchemy:PinotHTTPDialect"
