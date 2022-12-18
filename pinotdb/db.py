@@ -7,8 +7,7 @@ from enum import Enum
 from pprint import pformat
 
 import httpx
-from six import string_types
-from six.moves.urllib import parse
+from urllib import parse
 
 from pinotdb import exceptions
 
@@ -578,7 +577,7 @@ def apply_parameters(operation, parameters):
 def escape(value):
     if value == "*":
         return value
-    elif isinstance(value, string_types):
+    elif isinstance(value, str):
         return "'{}'".format(value.replace("'", "''"))
     elif isinstance(value, (int, float)):
         return value
