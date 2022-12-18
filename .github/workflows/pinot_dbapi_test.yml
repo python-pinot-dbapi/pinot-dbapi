@@ -36,12 +36,12 @@ on:
       - "**.md"
 
 jobs:
-  pinot-dbapi-test:
+  pinot-dbapi-integration-tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
-    name: Pinot DB API Test Set
+    name: Pinot DB API Integration Test Set
     steps:
       - uses: actions/checkout@v2
       - name: Pull Pinot Docker Image
@@ -64,10 +64,26 @@ jobs:
           CONTROLLER_PORT_FORWARD: 9000
           BROKER_PORT_FORWARD: 8000
         run: .github/scripts/setup_python_test_env.sh
-      - name: Run Python Tests
-        run: .github/scripts/run_python_test.sh
+      - name: Run Integration Tests
+        run: make test-integration
       - name: Clean up
         if: always()
         shell: bash
         run: |
           docker rm $(docker stop $(docker ps -a -q --filter ancestor="apachepinot/pinot:latest" --format="{{.ID}}"))
+  pinot-dbapi-unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+    name: Pinot DB API Unit Test Set
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Setup Python Test Env
+        run: make init
+      - name: Run Integration Tests
+        run: make test-unit
