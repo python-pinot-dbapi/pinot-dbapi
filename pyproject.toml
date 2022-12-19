@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "pinotdb"
-version = "0.4.8"
+version = "0.4.9"
 description = "Python DB-API and SQLAlchemy dialect for Pinot."
-authors = ["Beto Dealmeida <beto@dealmeida.net>, Devesh Agrawal <devesh.agrawal@gmail.com>"]
+authors = ["Beto Dealmeida <beto@dealmeida.net>", "Devesh Agrawal <devesh.agrawal@gmail.com>", "Xiang Fu <xiangfu.1024@gmail.com>", "Rong Rong <rongr@apache.org>"]
 license = "MIT"
 readme = "README.md"
 packages = [{include = "pinotdb"}]
