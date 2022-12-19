@@ -267,7 +267,8 @@ def convert_result_if_required(data_types, rows):
     for i, t in enumerate(data_types):
         if t.needs_conversion:
             for row in rows:
-                row[i] = convert_result(t, json.dumps(row[i]))
+                if row[i] is not None:
+                    row[i] = convert_result(t, json.dumps(row[i]))
     return rows
 
 
