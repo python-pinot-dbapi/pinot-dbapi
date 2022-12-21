@@ -4,9 +4,12 @@ import os
 import unittest
 
 from contextlib import redirect_stdout, redirect_stderr
+from datetime import datetime
+
 from parameterized import parameterized
 from typing import *
 
+from pinotdb.db import convert_result_if_required, TypeCodeAndValue, Type
 
 _parameterized_test_scripts: List[str] = list()
 skipped_modules: List[str] = [
@@ -44,3 +47,15 @@ class ExampleWrappedTestCase(unittest.TestCase):
                 print("...")
                 std_err_result = std_err.getvalue()
                 assert len(std_err_result) == 0 or std_err_result.find("error") == -1
+
+    def test_null_field_parsing(self) -> None:
+        types = [TypeCodeAndValue(Type.NUMBER, False, False),
+                 TypeCodeAndValue(Type.STRING, False, False),
+                 TypeCodeAndValue(Type.BOOLEAN, False, False),
+                 TypeCodeAndValue(Type.TIMESTAMP, False, True)]
+        rows = [[1, "abc", True, "2022-12-22 01:46:28.0"],
+                [None, None, None, None]]
+        res = convert_result_if_required(types, rows)
+
+        assert res == [[1, "abc", True, datetime(2022, 12, 22, 1, 46, 28)],
+                       [None, None, None, None]]
