@@ -1,4 +1,6 @@
 import asyncio
+from functools import wraps
+
 import ciso8601
 import json
 import logging
@@ -46,7 +48,7 @@ def connect_async(*args, **kwargs):
 def check_closed(f):
     """Decorator that checks if connection/cursor is closed."""
 
-    # TODO: make sure the decorated function is properly wrapped.
+    @wraps(f)
     def g(self, *args, **kwargs):
         if self.closed:
             raise exceptions.Error(f"{self.__class__.__name__} already closed")
@@ -58,7 +60,7 @@ def check_closed(f):
 def check_result(f):
     """Decorator that checks if the cursor has results from `execute`."""
 
-    # TODO: make sure the decorated function is properly wrapped.
+    @wraps(f)
     def g(self, *args, **kwargs):
         if self._results is None:
             raise exceptions.Error("Called before `execute`")
