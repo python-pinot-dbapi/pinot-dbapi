@@ -171,13 +171,7 @@ class Connection:
                 pass  # already closed
         # if we're managing the httpx session, attempt to close it
         if not self.is_session_external:
-            # TODO: This except clause has no point, as the session is always
-            #  provided by httpx and will never raise a pinotdb exception.
-            #  We should remove this.
-            try:
-                self.session.close()
-            except exceptions.Error:
-                pass  # already closed
+            self.session.close()
 
     @check_closed
     def commit(self):
