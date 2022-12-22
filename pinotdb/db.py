@@ -353,8 +353,8 @@ class Cursor:
     @check_closed
     def close(self):
         """Close the cursor."""
-        # TODO: Check if the session actually exists, first.
-        self.session.close()
+        if self.session is not None and not self.session.is_closed:
+            self.session.close()
         self.closed = True
 
     def is_valid_exception(self, e):
