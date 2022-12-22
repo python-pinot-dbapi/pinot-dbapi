@@ -126,6 +126,14 @@ class ConnectionTest(TestCase):
         connection.commit()
 
     def test_executes_a_statement(self):
+        """
+        This test tests whether the library is capable of executing statements
+        against Pinot by sending requests to it via its API endpoints.
+
+        With this test we're not yet focusing on how the request format or
+        anything like that, since it's not the Connection's responsibility to
+        do that.
+        """
         connection = db.Connection(
             host='localhost', session=MagicMock(spec=httpx.Client))
         connection.session.is_closed = False
