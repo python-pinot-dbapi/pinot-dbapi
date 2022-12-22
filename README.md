@@ -52,6 +52,7 @@ conn = connect(host="localhost", port=443, path="/query/sql", scheme="https", us
 
 To pass in additional query parameters (such as `useMultistageEngine=true`) you may pass
 them in as part of the `execute` method. For example:
+
 ```python
 curs.execute("select * from airlineStats air limit 10", queryOptions="useMultistageEngine=true")
 ```
@@ -251,3 +252,5 @@ Then publish it to [pinotdb in PyPI](https://pypi.org/project/pinotdb/):
 ```
 $ poetry publish
 ```
+
+You can also go to Github Action: [Pinotdb Pypi Publisher](https://github.com/python-pinot-dbapi/pinot-dbapi/actions/workflows/pinotdb-pypi-publisher.yml) to click and run the workflow to publish to PYPI.
