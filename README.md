@@ -52,6 +52,7 @@ conn = connect(host="localhost", port=443, path="/query/sql", scheme="https", us
 
 To pass in additional query parameters (such as `useMultistageEngine=true`) you may pass
 them in as part of the `execute` method. For example:
+
 ```python
 curs.execute("select * from airlineStats air limit 10", queryOptions="useMultistageEngine=true")
 ```
@@ -233,8 +234,26 @@ After you make sure you have them installed, test the library:
 
 ## Release
 
+### Prepare release credential
+
+First, configure your credentials for the release. You can simply attach your PyPI API token to the Poetry tool:
+
+```
+$ poetry config pypi-token.pypi <your_api_token_generated_from_pypi.org>
+```
+
+You should only need to do this once to set up your poetry config for the release.
+Alternatively, you can also use username and password:
+
+```
+$ poetry publish --username=<your_username> --password='<your_password>'
+```
+
+### Build and release a new Pinot DB-API to PyPI
+
 Bump the project to whichever next version is more suitable according to
-[SemVer](https://semver.org/). For example, to bump the patch version:
+[SemVer](https://semver.org/). For example, to bump the patch version automatically,
+simply ran the following command:
 
 ```
 $ poetry version patch
@@ -251,3 +270,5 @@ Then publish it to [pinotdb in PyPI](https://pypi.org/project/pinotdb/):
 ```
 $ poetry publish
 ```
+
+You can also go to Github Action: [Pinotdb Pypi Publisher](https://github.com/python-pinot-dbapi/pinot-dbapi/actions/workflows/pinotdb-pypi-publisher.yml) to click and run the workflow to publish to PYPI.
