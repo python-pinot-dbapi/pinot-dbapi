@@ -147,3 +147,14 @@ class ConnectionTest(TestCase):
         cursor = connection.execute('some statement')
 
         self.assertIsInstance(cursor, db.Cursor)
+
+    def test_uses_cursor_in_context_manager_block(self):
+        connection = db.Connection(
+            host='localhost', session=MagicMock(spec=httpx.Client))
+        connection.session.is_closed = False
+
+        with connection as cursor:
+            self.assertIsInstance(cursor, db.Cursor)
+            self.assertFalse(cursor.closed)
+
+        self.assertTrue(cursor.closed)
