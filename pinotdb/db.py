@@ -1,4 +1,6 @@
 import asyncio
+from functools import wraps
+
 import ciso8601
 import json
 import logging
@@ -7,8 +9,7 @@ from enum import Enum
 from pprint import pformat
 
 import httpx
-from six import string_types
-from six.moves.urllib import parse
+from urllib import parse
 
 from pinotdb import exceptions
 
@@ -47,6 +48,7 @@ def connect_async(*args, **kwargs):
 def check_closed(f):
     """Decorator that checks if connection/cursor is closed."""
 
+    @wraps(f)
     def g(self, *args, **kwargs):
         if self.closed:
             raise exceptions.Error(f"{self.__class__.__name__} already closed")
@@ -58,6 +60,7 @@ def check_closed(f):
 def check_result(f):
     """Decorator that checks if the cursor has results from `execute`."""
 
+    @wraps(f)
     def g(self, *args, **kwargs):
         if self._results is None:
             raise exceptions.Error("Called before `execute`")
@@ -140,8 +143,7 @@ def is_iterable(value):
         return False
 
 
-class Connection(object):
-
+class Connection:
     """Connection to a Pinot database."""
 
     def __init__(self, *args, **kwargs):
@@ -171,10 +173,7 @@ class Connection(object):
                 pass  # already closed
         # if we're managing the httpx session, attempt to close it
         if not self.is_session_external:
-            try:
-                self.session.close()
-            except exceptions.Error:
-                pass  # already closed
+            self.session.close()
 
     @check_closed
     def commit(self):
@@ -279,7 +278,7 @@ def convert_result(data_type, raw_row):
     else:
         return raw_row
 
-class Cursor(object):
+class Cursor:
     """Connection cursor."""
 
     def __init__(
@@ -327,6 +326,7 @@ class Cursor(object):
             self._ignore_exception_error_codes = []
 
         if not self.session:
+            # TODO: this property isn't defined anywhere, needs to be fixed.
             if self.use_async:
                 self.session = httpx.AsyncClient(verify=verify_ssl, **kwargs)
             else:
@@ -349,7 +349,8 @@ class Cursor(object):
     @check_closed
     def close(self):
         """Close the cursor."""
-        self.session.close()
+        if self.session is not None and not self.session.is_closed:
+            self.session.close()
         self.closed = True
 
     def is_valid_exception(self, e):
@@ -578,7 +579,7 @@ def apply_parameters(operation, parameters):
 def escape(value):
     if value == "*":
         return value
-    elif isinstance(value, string_types):
+    elif isinstance(value, str):
         return "'{}'".format(value.replace("'", "''"))
     elif isinstance(value, (int, float)):
         return value

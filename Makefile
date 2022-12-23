@@ -4,6 +4,15 @@ init: poetry lock
 test:
 	poetry run pytest
 
+test-integration:
+	poetry run pytest tests/integration/
+
+test-unit:
+	poetry run pytest tests/unit/
+
+lint:
+	poetry run flake8 pinotdb
+
 lock:
 	poetry lock
 

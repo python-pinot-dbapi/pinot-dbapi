@@ -1,4 +1,4 @@
-from six.moves.urllib import parse
+from urllib import parse
 
 import requests
 from requests.auth import HTTPBasicAuth
