@@ -4,7 +4,7 @@ from functools import wraps
 import ciso8601
 import json
 import logging
-from collections import namedtuple, OrderedDict
+from collections import namedtuple
 from enum import Enum
 from pprint import pformat
 
@@ -83,6 +83,7 @@ def get_description_from_types(column_names, types):
         for name, tc in zip(column_names, types)
     ]
 
+
 def get_columns_and_types(column_names, types):
     return [
         {
@@ -109,15 +110,20 @@ def get_types_from_column_data_types(column_data_types):
             or data_type == "FLOAT"
             or data_type == "DOUBLE"
         ):
-            types[column_index] = TypeCodeAndValue(Type.NUMBER, is_iterable, False)
+            types[column_index] = TypeCodeAndValue(
+                Type.NUMBER, is_iterable, False)
         elif data_type == "STRING" or data_type == "BYTES":
-            types[column_index] = TypeCodeAndValue(Type.STRING, is_iterable, False)
+            types[column_index] = TypeCodeAndValue(
+                Type.STRING, is_iterable, False)
         elif data_type == "BOOLEAN":
-            types[column_index] = TypeCodeAndValue(Type.BOOLEAN, is_iterable, False)
+            types[column_index] = TypeCodeAndValue(
+                Type.BOOLEAN, is_iterable, False)
         elif data_type == "TIMESTAMP":
-            types[column_index] = TypeCodeAndValue(Type.TIMESTAMP, is_iterable, True)
+            types[column_index] = TypeCodeAndValue(
+                Type.TIMESTAMP, is_iterable, True)
         else:
-            types[column_index] = TypeCodeAndValue(Type.STRING, is_iterable, True)
+            types[column_index] = TypeCodeAndValue(
+                Type.STRING, is_iterable, True)
     return types
 
 
@@ -128,7 +134,8 @@ def get_group_by_column_names(aggregation_results):
         gby_cols_for_metric = metric.get("groupByColumns", [])
         if group_by_cols and group_by_cols != gby_cols_for_metric:
             raise exceptions.DatabaseError(
-                f"Cols for metric {metric_name}: {gby_cols_for_metric} differ from other columns {group_by_cols}"
+                f"Cols for metric {metric_name}: {gby_cols_for_metric} "
+                f"differ from other columns {group_by_cols}"
             )
         elif not group_by_cols:
             group_by_cols = gby_cols_for_metric[:]
@@ -275,6 +282,7 @@ def convert_result(data_type, raw_row):
     else:
         return raw_row
 
+
 class Cursor:
     """Connection cursor."""
 
@@ -297,7 +305,8 @@ class Cursor:
     ):
         if path == "query":
             path = "query/sql"
-        self.url = parse.urlunparse((scheme, f"{host}:{port}", path, None, None, None))
+        self.url = parse.urlunparse(
+            (scheme, f"{host}:{port}", path, None, None, None))
         self.session = session
 
         # This read/write attribute specifies the number of rows to fetch at a
@@ -375,7 +384,9 @@ class Cursor:
                 f" {responded} responded, while needed was {needed}"
             )
 
-    def finalize_query_payload(self, operation, parameters=None, queryOptions=None):
+    def finalize_query_payload(
+            self, operation, parameters=None, queryOptions=None
+    ):
         query = apply_parameters(operation, parameters or {})
 
         if self._preserve_types:
@@ -391,12 +402,16 @@ class Cursor:
             payload = query_response.json()
         except Exception as e:
             raise exceptions.DatabaseError(
-                f"Error when querying {input_query} from {self.url}, raw response is:\n{query_response.text}"
+                f"Error when querying {input_query} from {self.url}, "
+                f"raw response is:\n{query_response.text}"
             ) from e
 
         if self._debug:
+            status_code = (
+                0 if not query_response else query_response.status_code)
             logger.info(
-                f"Got the payload of type {type(payload)} with the status code {0 if not query_response else query_response.status_code}:\n{payload}"
+                f"Got the payload of type {type(payload)} "
+                f"with the status code {status_code}:\n{payload}"
             )
 
         num_servers_responded = payload.get("numServersResponded", -1)
@@ -408,32 +423,43 @@ class Cursor:
 
         # raise any error messages
         if query_response.status_code != 200:
-            msg = f"Query\n\n{input_query}\n\nreturned an error: {query_response.status_code}\nFull response is {pformat(payload)}"
+            msg = (
+                f"Query\n\n{input_query}\n\nreturned an error: "
+                f"{query_response.status_code}\n"
+                f"Full response is {pformat(payload)}")
             raise exceptions.ProgrammingError(msg)
 
         query_exceptions = [
-            e for e in payload.get("exceptions", []) if self.is_valid_exception(e)
+            e for e in payload.get("exceptions", [])
+            if self.is_valid_exception(e)
         ]
         if query_exceptions:
-            msg = "\n".join(pformat(exception) for exception in query_exceptions)
+            msg = "\n".join(
+                pformat(exception) for exception in query_exceptions)
             raise exceptions.DatabaseError(msg)
 
-        rows = []  # array of array, where inner array is array of column values
-        column_names = []  # column names, such that len(column_names) == len(rows[0])
-        column_data_types = []  # column data types 1:1 mapping to column_names
+        # array of array, where inner array is array of column values
+        rows = []
+        # column names, such that len(column_names) == len(rows[0])
+        column_names = []
+        # column data types 1:1 mapping to column_names
+        column_data_types = []
         if "resultTable" in payload:
             results = payload["resultTable"]
-            column_names = results.get("dataSchema").get("columnNames")
-            column_data_types = results.get("dataSchema").get("columnDataTypes")
+            data_schema = results.get("dataSchema")
+            column_names = data_schema.get("columnNames")
+            column_data_types = data_schema.get("columnDataTypes")
             values = results.get("rows")
             if column_names:
                 rows = values
             else:
                 raise exceptions.DatabaseError(
-                    f"Expected columns and results in resultTable, but got {pformat(results)} instead"
+                    "Expected columns and results in resultTable, "
+                    f"but got {pformat(results)} instead"
                 )
 
-        logger.debug(f"Got the rows as a type {type(rows)} of size {len(rows)}")
+        logger.debug(
+            f"Got the rows as a type {type(rows)} of size {len(rows)}")
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(pformat(rows))
         self.description = None
@@ -442,17 +468,20 @@ class Cursor:
             types = get_types_from_column_data_types(column_data_types)
             if self._debug:
                 logger.info(
-                    f"Column_names are {pformat(column_names)}, Column_data_types are {pformat(column_data_types)}, Types are {pformat(types)}"
+                    f"Column_names are {pformat(column_names)}, "
+                    f"Column_data_types are {pformat(column_data_types)}, "
+                    f"Types are {pformat(types)}"
                 )
             self._results = convert_result_if_required(types, rows)
             self.description = get_description_from_types(column_names, types)
-            self.schema = get_columns_and_types(column_names, column_data_types)
+            self.schema = get_columns_and_types(
+                column_names, column_data_types)
         return self
-
 
     @check_closed
     def execute(self, operation, parameters=None, queryOptions=None, **kwargs):
-        query = self.finalize_query_payload(operation, parameters, queryOptions)
+        query = self.finalize_query_payload(
+            operation, parameters, queryOptions)
 
         if self.auth and self.auth._username and self.auth._password:
             r = self.session.post(
@@ -507,7 +536,7 @@ class Cursor:
         arraysize attribute can affect the performance of this operation.
         """
         return list(self)
-    
+
     @check_result
     @check_closed
     def fetchwithschema(self):
@@ -544,8 +573,11 @@ class Cursor:
 
 class AsyncCursor(Cursor):
     @check_closed
-    async def execute(self, operation, parameters=None, queryOptions=None, **kwargs):
-        query = self.finalize_query_payload(operation, parameters, queryOptions)
+    async def execute(
+            self, operation, parameters=None, queryOptions=None, **kwargs
+    ):
+        query = self.finalize_query_payload(
+            operation, parameters, queryOptions)
 
         if self.auth and self.auth._username and self.auth._password:
             r = await self.session.post(
@@ -569,7 +601,8 @@ class AsyncCursor(Cursor):
 
 
 def apply_parameters(operation, parameters):
-    escaped_parameters = {key: escape(value) for key, value in parameters.items()}
+    escaped_parameters = {
+        key: escape(value) for key, value in parameters.items()}
     return operation % escaped_parameters
 
 
