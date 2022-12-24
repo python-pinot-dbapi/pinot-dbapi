@@ -102,7 +102,8 @@ class PinotTypeCompiler(compiler.GenericTypeCompiler):
 
 class PinotIdentifierPareparer(compiler.IdentifierPreparer):
     reserved_words = set(
-        [e.lower() for e in (keywords.CALCITE_KEYWORDS ^ keywords.SUPERSET_KEYWORDS)]
+        [e.lower()
+         for e in (keywords.CALCITE_KEYWORDS ^ keywords.SUPERSET_KEYWORDS)]
     )
 
     def __init__(
@@ -305,14 +306,16 @@ def get_default(pinot_column_default):
         return str(pinot_column_default)
 
 
-## Ref to supported Pinot data types: https://docs.pinot.apache.org/basics/components/schema#data-types
+# Ref to supported Pinot data types:
+# https://docs.pinot.apache.org/basics/components/schema#data-types
 def get_type(data_type, field_size):
     type_map = {
         "int": types.BigInteger,
         "long": types.BigInteger,
         "float": types.Float,
         "double": types.Numeric,
-        # BOOLEAN, is added after release 0.7.1. In release 0.7.1 and older releases, BOOLEAN is equivalent to STRING.
+        # BOOLEAN, is added after release 0.7.1.
+        # In release 0.7.1 and older releases, BOOLEAN is equivalent to STRING.
         "boolean": types.Boolean,
         "timestamp": types.TIMESTAMP,
         "string": types.String,
