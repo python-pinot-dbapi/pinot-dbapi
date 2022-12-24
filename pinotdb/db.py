@@ -242,10 +242,7 @@ class AsyncConnection(Connection):
         await asyncio.gather(*close_reqs)
         # if we're managing the httpx session, attempt to close it
         if not self.is_session_external:
-            try:
-                await self.session.aclose()
-            except exceptions.Error:
-                pass  # already closed
+            await self.session.aclose()
 
     @check_closed
     async def execute(self, operation, parameters=None):
