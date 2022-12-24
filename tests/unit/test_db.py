@@ -1,9 +1,9 @@
-import asyncio
 from unittest import TestCase
 from unittest.mock import MagicMock
 
 import httpx
 from mock import AsyncMock
+from mock.backports import IsolatedAsyncioTestCase
 
 from pinotdb import db, exceptions
 
@@ -162,7 +162,7 @@ class ConnectionTest(TestCase):
         self.assertTrue(cursor.closed)
 
 
-class AsyncConnectionTest(TestCase):
+class AsyncConnectionTest(IsolatedAsyncioTestCase):
     def test_starts_without_session_by_default(self):
         connection = db.AsyncConnection()
 
@@ -197,69 +197,50 @@ class AsyncConnectionTest(TestCase):
 
         connection.verify_session()
 
-    # Note: we can't run async tests because they were not yet supported by
-    # Python 3.7, which we still support with this library.
-    # So, instead, we just have this ugly hack to be able to test async stuff.
-    def test_uses_cursor_in_context_manager_block(self):
-        async def run_async():
-            connection = db.AsyncConnection(
-                host='localhost', session=MagicMock(spec=httpx.AsyncClient))
-            connection.session.is_closed = False
+    async def test_uses_cursor_in_context_manager_block(self):
+        connection = db.AsyncConnection(
+            host='localhost', session=MagicMock(spec=httpx.AsyncClient))
+        connection.session.is_closed = False
 
-            async with connection as cursor:
-                self.assertIsInstance(cursor, db.AsyncCursor)
-                self.assertFalse(cursor.closed)
+        async with connection as cursor:
+            self.assertIsInstance(cursor, db.AsyncCursor)
+            self.assertFalse(cursor.closed)
 
-            self.assertTrue(cursor.closed)
+        self.assertTrue(cursor.closed)
 
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(run_async())
+    async def test_renews_session_if_closed_when_getting_cursor(self):
+        connection = db.AsyncConnection(host='localhost')
+        connection.cursor()
+        session1 = connection.session
 
-    def test_renews_session_if_closed_when_getting_cursor(self):
-        async def run_async():
-            connection = db.AsyncConnection(host='localhost')
-            connection.cursor()
-            session1 = connection.session
+        await session1.aclose()
+        connection.cursor()
+        session2 = connection.session
 
-            await session1.aclose()
-            connection.cursor()
-            session2 = connection.session
+        self.assertIsNot(session1, session2)
 
-            self.assertIsNot(session1, session2)
+    async def test_closes_connection_even_if_cursor_already_closed(self):
+        connection = db.AsyncConnection(
+            host='localhost', session=MagicMock(spec=httpx.AsyncClient))
+        cursor = connection.cursor()
+        await cursor.close()
 
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(run_async())
+        await connection.close()
 
-    def test_closes_connection_even_if_cursor_already_closed(self):
-        async def run_async():
-            connection = db.AsyncConnection(
-                host='localhost', session=MagicMock(spec=httpx.AsyncClient))
-            cursor = connection.cursor()
-            await cursor.close()
+        self.assertTrue(connection.closed)
+        self.assertTrue(cursor.closed)
 
-            await connection.close()
+    async def test_closes_underlying_session_as_well(self):
+        connection = db.AsyncConnection(
+            host='localhost', session=MagicMock(spec=httpx.AsyncClient))
+        # Just to simulate an implicitly created session.
+        connection.is_session_external = False
 
-            self.assertTrue(connection.closed)
-            self.assertTrue(cursor.closed)
+        await connection.close()
 
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(run_async())
+        self.assertTrue(connection.session.aclose.called)
 
-    def test_closes_underlying_session_as_well(self):
-        async def run_async():
-            connection = db.AsyncConnection(
-                host='localhost', session=MagicMock(spec=httpx.AsyncClient))
-            # Just to simulate an implicitly created session.
-            connection.is_session_external = False
-
-            await connection.close()
-
-            self.assertTrue(connection.session.aclose.called)
-
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(run_async())
-
-    def test_executes_a_statement(self):
+    async def test_executes_a_statement(self):
         """
         This test tests whether the library is capable of executing statements
         against Pinot by sending requests to it via its API endpoints.
@@ -268,21 +249,17 @@ class AsyncConnectionTest(TestCase):
         anything like that, since it's not the Connection's responsibility to
         do that.
         """
-        async def run_async():
-            connection = db.AsyncConnection(
-                host='localhost', session=AsyncMock(spec=httpx.AsyncClient))
-            connection.session.is_closed = False
-            response = connection.session.post.return_value
-            response.json = MagicMock()
-            response.json.return_value = {
-                'numServersResponded': 1,
-                'numServersQueried': 1,
-            }
-            response.status_code = 200
+        connection = db.AsyncConnection(
+            host='localhost', session=AsyncMock(spec=httpx.AsyncClient))
+        connection.session.is_closed = False
+        response = connection.session.post.return_value
+        response.json = MagicMock()
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+        }
+        response.status_code = 200
 
-            cursor = await connection.execute('some statement')
+        cursor = await connection.execute('some statement')
 
-            self.assertIsInstance(cursor, db.AsyncCursor)
-
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(run_async())
+        self.assertIsInstance(cursor, db.AsyncCursor)
