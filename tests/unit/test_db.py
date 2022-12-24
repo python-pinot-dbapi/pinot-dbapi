@@ -263,3 +263,24 @@ class AsyncConnectionTest(IsolatedAsyncioTestCase):
         cursor = await connection.execute('some statement')
 
         self.assertIsInstance(cursor, db.AsyncCursor)
+
+
+class CursorTest(TestCase):
+    def test_instantiates_with_basic_url(self):
+        cursor = db.Cursor(host='localhost', session=httpx.Client())
+
+        self.assertEqual(cursor.url, 'http://localhost:8099/query/sql')
+
+    def test_fixes_query_path_when_instantiating(self):
+        cursor = db.Cursor(
+            host='localhost', path='query', session=httpx.Client())
+
+        self.assertEqual(cursor.url, 'http://localhost:8099/query/sql')
+
+    def test_instantiates_with_extra_headers(self):
+        cursor = db.Cursor(
+            host='localhost', session=httpx.Client(),
+            extra_request_headers='foo=bar,baz=yo')
+
+        self.assertEqual(cursor.session.headers['foo'], 'bar')
+        self.assertEqual(cursor.session.headers['baz'], 'yo')

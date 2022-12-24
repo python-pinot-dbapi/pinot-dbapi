@@ -294,12 +294,16 @@ class Cursor:
         path="/query/sql",
         username=None,
         password=None,
+        # TODO: Remove this unused parameter when we can afford to break the
+        #  interface (e.g. new minor version).
         verify_ssl=True,
         extra_request_headers="",
         debug=False,
         preserve_types=False,
         ignore_exception_error_codes="",
         acceptable_respond_fraction=-1,
+        # TODO: Move this parameter when we can afford to break the
+        #  interface (e.g. new minor version).
         session=None,
         **kwargs
     ):
@@ -330,13 +334,6 @@ class Cursor:
             )
         else:
             self._ignore_exception_error_codes = []
-
-        if not self.session:
-            # TODO: this property isn't defined anywhere, needs to be fixed.
-            if self.use_async:
-                self.session = httpx.AsyncClient(verify=verify_ssl, **kwargs)
-            else:
-                self.session = httpx.Client(verify=verify_ssl, **kwargs)
 
         self.auth = None
         if username and password:
@@ -374,7 +371,7 @@ class Cursor:
             needed = -1
         elif fraction <= -1:
             needed = queried
-        elif fraction > 0 and fraction < 1:
+        elif 0 < fraction < 1:
             needed = int(fraction * queried)
         else:
             needed = fraction
