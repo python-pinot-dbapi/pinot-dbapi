@@ -476,6 +476,10 @@ class Cursor:
         return self
 
     @check_closed
+    # TODO: Rename queryOptions to query_options when releasing a breaking
+    #  version - even though Pinot understands "queryOptions", we don't need
+    #  to follow the same camel casing convention, but rather should stick
+    #  to PEP-8 instead.
     def execute(self, operation, parameters=None, queryOptions=None, **kwargs):
         query = self.finalize_query_payload(
             operation, parameters, queryOptions)
