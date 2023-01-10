@@ -506,11 +506,13 @@ class Cursor:
     def fetchall(self):
         """
         Fetch all (remaining) rows of a query result, returning them as a
-        sequence of sequences (e.g. a list of tuples). Note that the cursor's
-        arraysize attribute can affect the performance of this operation.
+        sequence of sequences (e.g. a list of tuples).
         """
-        return list(self)
-    
+
+        results = self._results
+        self._results = None
+        return results
+
     @check_result
     @check_closed
     def fetchwithschema(self):
