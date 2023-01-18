@@ -2,6 +2,8 @@ from unittest import TestCase
 from unittest.mock import MagicMock
 
 import httpx
+from mock import AsyncMock
+from mock.backports import IsolatedAsyncioTestCase
 
 from pinotdb import db, exceptions
 
@@ -147,3 +149,322 @@ class ConnectionTest(TestCase):
         cursor = connection.execute('some statement')
 
         self.assertIsInstance(cursor, db.Cursor)
+
+    def test_uses_cursor_in_context_manager_block(self):
+        connection = db.Connection(
+            host='localhost', session=MagicMock(spec=httpx.Client))
+        connection.session.is_closed = False
+
+        with connection as cursor:
+            self.assertIsInstance(cursor, db.Cursor)
+            self.assertFalse(cursor.closed)
+
+        self.assertTrue(cursor.closed)
+
+
+class AsyncConnectionTest(IsolatedAsyncioTestCase):
+    def test_starts_without_session_by_default(self):
+        connection = db.AsyncConnection()
+
+        self.assertIsNone(connection.session)
+        self.assertFalse(connection.is_session_external)
+
+    def test_verifies_httpx_session_upon_initializing_if_provided(self):
+        client = httpx.AsyncClient()
+
+        connection = db.AsyncConnection(session=client)
+
+        self.assertIs(connection.session, client)
+        self.assertTrue(connection.is_session_external)
+
+    def test_verifies_httpx_session(self):
+        client = httpx.AsyncClient()
+        connection = db.AsyncConnection()
+        connection.session = client
+
+        connection.verify_session()
+        # All good, no errors.
+
+    def test_fails_to_verify_session_if_unexpected_type(self):
+        connection = db.AsyncConnection()
+        connection.session = object()
+
+        with self.assertRaises(AssertionError):
+            connection.verify_session()
+
+    def test_bypasses_verification_if_no_session_initialized(self):
+        connection = db.AsyncConnection()
+
+        connection.verify_session()
+
+    async def test_uses_cursor_in_context_manager_block(self):
+        connection = db.AsyncConnection(
+            host='localhost', session=MagicMock(spec=httpx.AsyncClient))
+        connection.session.is_closed = False
+
+        async with connection as cursor:
+            self.assertIsInstance(cursor, db.AsyncCursor)
+            self.assertFalse(cursor.closed)
+
+        self.assertTrue(cursor.closed)
+
+    async def test_renews_session_if_closed_when_getting_cursor(self):
+        connection = db.AsyncConnection(host='localhost')
+        connection.cursor()
+        session1 = connection.session
+
+        await session1.aclose()
+        connection.cursor()
+        session2 = connection.session
+
+        self.assertIsNot(session1, session2)
+
+    async def test_closes_connection_even_if_cursor_already_closed(self):
+        connection = db.AsyncConnection(
+            host='localhost', session=MagicMock(spec=httpx.AsyncClient))
+        cursor = connection.cursor()
+        await cursor.close()
+
+        await connection.close()
+
+        self.assertTrue(connection.closed)
+        self.assertTrue(cursor.closed)
+
+    async def test_closes_underlying_session_as_well(self):
+        connection = db.AsyncConnection(
+            host='localhost', session=MagicMock(spec=httpx.AsyncClient))
+        # Just to simulate an implicitly created session.
+        connection.is_session_external = False
+
+        await connection.close()
+
+        self.assertTrue(connection.session.aclose.called)
+
+    async def test_executes_a_statement(self):
+        """
+        This test tests whether the library is capable of executing statements
+        against Pinot by sending requests to it via its API endpoints.
+
+        With this test we're not yet focusing on how the request format or
+        anything like that, since it's not the Connection's responsibility to
+        do that.
+        """
+        connection = db.AsyncConnection(
+            host='localhost', session=AsyncMock(spec=httpx.AsyncClient))
+        connection.session.is_closed = False
+        response = connection.session.post.return_value
+        response.json = MagicMock()
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+        }
+        response.status_code = 200
+
+        cursor = await connection.execute('some statement')
+
+        self.assertIsInstance(cursor, db.AsyncCursor)
+
+
+class CursorTest(TestCase):
+    def test_instantiates_with_basic_url(self):
+        cursor = db.Cursor(host='localhost', session=httpx.Client())
+
+        self.assertEqual(cursor.url, 'http://localhost:8099/query/sql')
+
+    def test_instantiates_with_auth(self):
+        cursor = db.Cursor(
+            host='localhost', session=httpx.Client(),
+            username='john', password='my-pass')
+
+        self.assertIsInstance(cursor.auth, httpx.DigestAuth)
+
+    def test_fixes_query_path_when_instantiating(self):
+        cursor = db.Cursor(
+            host='localhost', path='query', session=httpx.Client())
+
+        self.assertEqual(cursor.url, 'http://localhost:8099/query/sql')
+
+    def test_instantiates_with_extra_headers(self):
+        cursor = db.Cursor(
+            host='localhost', session=httpx.Client(),
+            extra_request_headers='foo=bar,baz=yo')
+
+        self.assertEqual(cursor.session.headers['foo'], 'bar')
+        self.assertEqual(cursor.session.headers['baz'], 'yo')
+
+    def test_checks_valid_exception_if_not_containing_error_code(self):
+        cursor = db.Cursor(host='localhost', session=httpx.Client())
+
+        self.assertTrue(cursor.is_valid_exception({}))
+
+    def test_checks_valid_exception_if_error_code_not_ignored(self):
+        cursor = db.Cursor(host='localhost', session=httpx.Client())
+
+        self.assertTrue(cursor.is_valid_exception({
+            'errorCode': 123,
+        }))
+
+    def test_checks_invalid_exception_if_error_code_ignored(self):
+        cursor = db.Cursor(
+            host='localhost', session=httpx.Client(),
+            ignore_exception_error_codes='123,234')
+
+        self.assertFalse(cursor.is_valid_exception({
+            'errorCode': 123,
+        }))
+
+    def test_cant_close_connection_twice(self):
+        cursor = db.Cursor(host='localhost', session=httpx.Client())
+
+        cursor.close()
+
+        with self.assertRaises(exceptions.Error):
+            cursor.close()
+
+    def test_closes_underlying_session_as_well(self):
+        cursor = db.Cursor(host='localhost', session=httpx.Client())
+
+        cursor.close()
+
+        self.assertTrue(cursor.session.is_closed)
+
+    def test_bypasses_session_close_if_already_closed(self):
+        cursor = db.Cursor(host='localhost', session=httpx.Client())
+        cursor.session.close()
+
+        cursor.close()
+
+    def test_checks_sufficient_responded_0_queried_0_responded(self):
+        cursor = db.Cursor(host='localhost', session=httpx.Client())
+
+        cursor.check_sufficient_responded('foo', 0, 0)
+
+    def test_checks_sufficient_responded_min1_queried_min1_responded(self):
+        cursor = db.Cursor(host='localhost', session=httpx.Client())
+
+        with self.assertRaises(exceptions.DatabaseError):
+            cursor.check_sufficient_responded('foo', -1, -1)
+
+    def test_checks_sufficient_responded_3_queried_3_responded(self):
+        cursor = db.Cursor(host='localhost', session=httpx.Client())
+
+        cursor.check_sufficient_responded('foo', 3, 3)
+
+    def test_checks_sufficient_responded_5_queried_3_responded(self):
+        cursor = db.Cursor(
+            host='localhost', session=httpx.Client(),
+            acceptable_respond_fraction=2)
+
+        cursor.check_sufficient_responded('foo', 5, 3)
+
+    def test_checks_sufficient_responded_4_queried_half_responded(self):
+        cursor = db.Cursor(
+            host='localhost', session=httpx.Client(),
+            acceptable_respond_fraction=0.5)
+
+        cursor.check_sufficient_responded('foo', 4, 2)
+
+    def test_checks_sufficient_responded_but_zero_needed(self):
+        cursor = db.Cursor(
+            host='localhost', session=httpx.Client(),
+            acceptable_respond_fraction=0)
+
+        cursor.check_sufficient_responded('foo', 10, 0)
+
+    def test_executes_query_within_session_with_empty_results(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client))
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+        }
+        response.status_code = 200
+
+        cursor.execute('some statement')
+
+        results = list(iter(cursor))
+        self.assertEqual(results, [])
+        cursor.session.post.assert_called_once_with(
+            'http://localhost:8099/query/sql', json={'sql': 'some statement'})
+
+    def test_executes_query_within_session_with_query_options(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client))
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+        }
+        response.status_code = 200
+
+        cursor.execute('some statement', queryOptions={'foo': 'bar'})
+
+        results = list(iter(cursor))
+        self.assertEqual(results, [])
+        cursor.session.post.assert_called_once_with(
+            'http://localhost:8099/query/sql', json={
+                'sql': 'some statement', 'queryOptions': {'foo': 'bar'}})
+
+    def test_executes_query_preserving_types(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client),
+            preserve_types=True,
+        )
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+        }
+        response.status_code = 200
+
+        cursor.execute('some statement')
+
+        results = list(iter(cursor))
+        self.assertEqual(results, [])
+        cursor.session.post.assert_called_once_with(
+            'http://localhost:8099/query/sql',
+            json={'sql': "some statement OPTION(preserveType='true')"})
+
+    def test_raises_database_error_if_problem_with_json(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client))
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        response.json.side_effect = ValueError()
+        response.status_code = 200
+
+        with self.assertRaises(exceptions.DatabaseError):
+            cursor.execute('some statement')
+
+    def test_executes_query_within_session_with_debug_enabled(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client), debug=True)
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+        }
+        response.status_code = 200
+
+        cursor.execute('some statement')
+
+        # All good, no errors
+
+    def test_raises_exception_if_error_in_status_code(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client))
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+        }
+        response.status_code = 400
+
+        with self.assertRaises(exceptions.ProgrammingError):
+            cursor.execute('some statement')
