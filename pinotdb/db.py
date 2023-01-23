@@ -21,6 +21,7 @@ class Type(Enum):
     NUMBER = 2
     BOOLEAN = 3
     TIMESTAMP = 4
+    JSON = 5
 
 
 def connect(*args, **kwargs):
@@ -121,6 +122,9 @@ def get_types_from_column_data_types(column_data_types):
         elif data_type == "TIMESTAMP":
             types[column_index] = TypeCodeAndValue(
                 Type.TIMESTAMP, is_iterable, True)
+        elif data_type == "JSON":
+            types[column_index] = TypeCodeAndValue(
+                Type.JSON, is_iterable, True)
         else:
             types[column_index] = TypeCodeAndValue(
                 Type.STRING, is_iterable, True)
@@ -271,16 +275,19 @@ def convert_result_if_required(data_types, rows):
         if t.needs_conversion:
             for row in rows:
                 if row[i] is not None:
-                    row[i] = convert_result(t, json.dumps(row[i]))
+                    row[i] = convert_result(t, row[i])
     return rows
 
 
 def convert_result(data_type, raw_row):
     if data_type.code == Type.TIMESTAMP:
-        # Pinot returns TIMESTAMP as STRING with double quote.
-        return ciso8601.parse_datetime(raw_row.strip('"'))
+        # Pinot returns TIMESTAMP as STRING
+        return ciso8601.parse_datetime(raw_row)
+    elif data_type.code == Type.JSON:
+        # Pinot returns JSON as STRING
+        return json.loads(raw_row)
     else:
-        return raw_row
+        return json.dumps(raw_row)
 
 
 class Cursor:
