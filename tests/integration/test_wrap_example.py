@@ -54,10 +54,13 @@ class ExampleWrappedTestCase(unittest.TestCase):
                  TypeCodeAndValue(Type.BOOLEAN, False, False),
                  TypeCodeAndValue(Type.TIMESTAMP, False, True),
                  TypeCodeAndValue(Type.JSON, False, True),
+                 TypeCodeAndValue(Type.JSON, False, True),
                  TypeCodeAndValue(Type.JSON, False, True)]
-        rows = [[1, "abc", True, "2022-12-22 01:46:28.0", '{"field1": "value1"}', '[{"field1": "value1"}]'],
-                [None, None, None, None, None, None]]
+        rows = [[1, "abc", True, "2022-12-22 01:46:28.0", '{"field1": "value1"}', '[{"field1": "value1"}]', ''],
+                [None, None, None, None, None, None, None]]
         res = convert_result_if_required(types, rows)
 
-        assert res == [[1, "abc", True, datetime(2022, 12, 22, 1, 46, 28), {"field1": "value1"}, [{"field1": "value1"}]],
-                       [None, None, None, None, None, None]]
+        assert res == [
+            [1, "abc", True, datetime(2022, 12, 22, 1, 46, 28), {"field1": "value1"}, [{"field1": "value1"}], None],
+            [None, None, None, None, None, None, None]
+        ]
