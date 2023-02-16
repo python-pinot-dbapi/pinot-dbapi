@@ -285,7 +285,7 @@ def convert_result(data_type, raw_row):
         return ciso8601.parse_datetime(raw_row)
     elif data_type.code == Type.JSON:
         # Pinot returns JSON as STRING
-        return json.loads(raw_row)
+        return json.loads(raw_row) if raw_row != '' else None
     else:
         return json.dumps(raw_row)
 
