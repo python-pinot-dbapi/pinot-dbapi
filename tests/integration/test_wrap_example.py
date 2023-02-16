@@ -53,14 +53,38 @@ class ExampleWrappedTestCase(unittest.TestCase):
                  TypeCodeAndValue(Type.STRING, False, False),
                  TypeCodeAndValue(Type.BOOLEAN, False, False),
                  TypeCodeAndValue(Type.TIMESTAMP, False, True),
-                 TypeCodeAndValue(Type.JSON, False, True),
-                 TypeCodeAndValue(Type.JSON, False, True),
-                 TypeCodeAndValue(Type.JSON, False, True)]
-        rows = [[1, "abc", True, "2022-12-22 01:46:28.0", '{"field1": "value1"}', '[{"field1": "value1"}]', ''],
-                [None, None, None, None, None, None, None]]
+                 TypeCodeAndValue(Type.JSON, False, True)
+                 ]
+        rows = [[1, "abc", True, "2022-12-22 01:46:28.0", '{"field1": "value1"}'],
+                [None, None, None, None, None]]
         res = convert_result_if_required(types, rows)
 
         assert res == [
-            [1, "abc", True, datetime(2022, 12, 22, 1, 46, 28), {"field1": "value1"}, [{"field1": "value1"}], None],
-            [None, None, None, None, None, None, None]
+            [1, "abc", True, datetime(2022, 12, 22, 1, 46, 28), {"field1": "value1"}],
+            [None, None, None, None, None]
+        ]
+
+    def test_json_field_parsing(self) -> None:
+        types = [TypeCodeAndValue(Type.JSON, False, True)]
+        rows = [
+            ['{"field1": "value1"}'],
+            ['[{"field1": "value1"}]'],
+            [''],
+            ['{"field1": ""}'],
+            ['{"field1": " "}'],
+            ['{"field1": null}'],
+            ['{}'],
+            ['null']
+        ]
+        res = convert_result_if_required(types, rows)
+
+        assert res == [
+            [{"field1": "value1"}],
+            [[{"field1": "value1"}]],
+            [None],
+            [{"field1": ""}],
+            [{"field1": " "}],
+            [{"field1": None}],
+            [{}],
+            [None]
         ]
