@@ -455,6 +455,31 @@ class CursorTest(TestCase):
             'http://localhost:8099/query/sql',
             json={'sql': "some statement OPTION(preserveType='true')"})
 
+    def test_executes_query_with_results(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client),
+            preserve_types=True,
+        )
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+            'resultTable': {
+                'dataSchema': {
+                    'columnNames': ['age'],
+                    'columnDataTypes': ['INT'],
+                },
+                'rows': [12],
+            },
+        }
+        response.status_code = 200
+
+        cursor.execute('some statement')
+
+        results = list(iter(cursor))
+        self.assertEqual(results, [12])
+
     def test_raises_database_error_if_problem_with_json(self):
         cursor = db.Cursor(
             host='localhost', session=MagicMock(spec=httpx.Client))

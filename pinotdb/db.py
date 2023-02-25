@@ -146,14 +146,6 @@ def get_group_by_column_names(aggregation_results):
     return group_by_cols
 
 
-def is_iterable(value):
-    try:
-        _ = iter(value)
-        return True
-    except TypeError:
-        return False
-
-
 class Connection:
     """Connection to a Pinot database."""
 
