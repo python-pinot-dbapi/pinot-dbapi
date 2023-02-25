@@ -1,3 +1,4 @@
+import datetime
 from unittest import TestCase
 from unittest.mock import MagicMock
 
@@ -462,15 +463,25 @@ class CursorTest(TestCase):
         )
         cursor.session.is_closed = False
         response = cursor.session.post.return_value
+        data = [
+            ('age', 'INT', 12),
+            ('name', 'STRING', 'John'),
+            ('is_old', 'BOOLEAN', False),
+            ('born_at', 'TIMESTAMP', '2010-01-01T00:30'),
+            ('extras', 'JSON', '{"foo": "bar"}'),
+            ('pet_peeve', 'UNKNOWN', 'bicycles'),
+        ]
         response.json.return_value = {
             'numServersResponded': 1,
             'numServersQueried': 1,
             'resultTable': {
                 'dataSchema': {
-                    'columnNames': ['age'],
-                    'columnDataTypes': ['INT'],
+                    'columnNames': [d[0] for d in data],
+                    'columnDataTypes': [d[1] for d in data],
                 },
-                'rows': [12],
+                'rows': [
+                    [d[2] for d in data],
+                ],
             },
         }
         response.status_code = 200
@@ -478,7 +489,10 @@ class CursorTest(TestCase):
         cursor.execute('some statement')
 
         results = list(iter(cursor))
-        self.assertEqual(results, [12])
+        self.assertEqual(results, [
+            [12, 'John', False, datetime.datetime(2010, 1, 1, 0, 30),
+             {'foo': 'bar'}, '"bicycles"'],
+        ])
 
     def test_raises_database_error_if_problem_with_json(self):
         cursor = db.Cursor(
