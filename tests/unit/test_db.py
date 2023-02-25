@@ -2,8 +2,16 @@ from unittest import TestCase
 from unittest.mock import MagicMock
 
 import httpx
-from mock import AsyncMock
-from mock.backports import IsolatedAsyncioTestCase
+
+try:
+    from unittest import IsolatedAsyncioTestCase
+except ImportError:
+    from mock.backports import IsolatedAsyncioTestCase
+
+try:
+    from unittest.mock import AsyncMock
+except ImportError:
+    from mock import AsyncMock
 
 from pinotdb import db, exceptions
 
@@ -161,6 +169,12 @@ class ConnectionTest(TestCase):
 
         self.assertTrue(cursor.closed)
 
+    def test_connects_sync_via_function(self):
+        connection = db.connect(
+            host='localhost', session=MagicMock(spec=httpx.Client))
+
+        self.assertIsInstance(connection, db.Connection)
+
 
 class AsyncConnectionTest(IsolatedAsyncioTestCase):
     def test_starts_without_session_by_default(self):
@@ -263,6 +277,11 @@ class AsyncConnectionTest(IsolatedAsyncioTestCase):
         cursor = await connection.execute('some statement')
 
         self.assertIsInstance(cursor, db.AsyncCursor)
+
+    def test_connects_async_via_function(self):
+        connection = db.connect_async()
+
+        self.assertIsInstance(connection, db.AsyncConnection)
 
 
 class CursorTest(TestCase):
@@ -370,6 +389,13 @@ class CursorTest(TestCase):
             acceptable_respond_fraction=0)
 
         cursor.check_sufficient_responded('foo', 10, 0)
+
+    def test_does_not_allow_fetching_if_not_executed_yet(self):
+        cursor = db.Cursor(
+            host='localhost', session=httpx.Client())
+
+        with self.assertRaises(exceptions.Error):
+            cursor.fetchone()
 
     def test_executes_query_within_session_with_empty_results(self):
         cursor = db.Cursor(
