@@ -569,6 +569,21 @@ class CursorTest(TestCase):
         with self.assertRaises(exceptions.DatabaseError):
             cursor.execute('some statement')
 
+    def test_raises_database_error_if_server_exception(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client))
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+            'exceptions': ['something', 'wrong'],
+        }
+        response.status_code = 200
+
+        with self.assertRaises(exceptions.DatabaseError):
+            cursor.execute('some statement')
+
     def test_executes_query_within_session_with_debug_enabled(self):
         cursor = db.Cursor(
             host='localhost', session=MagicMock(spec=httpx.Client), debug=True)
