@@ -456,7 +456,7 @@ class CursorTest(TestCase):
             'http://localhost:8099/query/sql',
             json={'sql': "some statement OPTION(preserveType='true')"})
 
-    def test_executes_query_with_results(self):
+    def test_executes_query_with_complex_results(self):
         cursor = db.Cursor(
             host='localhost', session=MagicMock(spec=httpx.Client),
             preserve_types=True,
@@ -492,6 +492,70 @@ class CursorTest(TestCase):
         self.assertEqual(results, [
             [12, 'John', False, datetime.datetime(2010, 1, 1, 0, 30),
              {'foo': 'bar'}, '"bicycles"'],
+        ])
+
+    def test_executes_query_with_simple_results(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client),
+            preserve_types=True,
+        )
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        data = [
+            ('age', 'INT', 12),
+        ]
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+            'resultTable': {
+                'dataSchema': {
+                    'columnNames': [d[0] for d in data],
+                    'columnDataTypes': [d[1] for d in data],
+                },
+                'rows': [
+                    [d[2] for d in data],
+                ],
+            },
+        }
+        response.status_code = 200
+
+        cursor.execute('some statement')
+
+        results = list(iter(cursor))
+        self.assertEqual(results, [
+            [12],
+        ])
+
+    def test_executes_query_with_none(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client),
+            preserve_types=True,
+        )
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        data = [
+            ('age', 'UNKNOWN', None),
+        ]
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+            'resultTable': {
+                'dataSchema': {
+                    'columnNames': [d[0] for d in data],
+                    'columnDataTypes': [d[1] for d in data],
+                },
+                'rows': [
+                    [None],
+                ],
+            },
+        }
+        response.status_code = 200
+
+        cursor.execute('some statement')
+
+        results = list(iter(cursor))
+        self.assertEqual(results, [
+            [None],
         ])
 
     def test_raises_database_error_if_problem_with_json(self):
