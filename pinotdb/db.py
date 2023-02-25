@@ -131,21 +131,6 @@ def get_types_from_column_data_types(column_data_types):
     return types
 
 
-def get_group_by_column_names(aggregation_results):
-    group_by_cols = []
-    for metric in aggregation_results:
-        metric_name = metric.get("function", "noname")
-        gby_cols_for_metric = metric.get("groupByColumns", [])
-        if group_by_cols and group_by_cols != gby_cols_for_metric:
-            raise exceptions.DatabaseError(
-                f"Cols for metric {metric_name}: {gby_cols_for_metric} "
-                f"differ from other columns {group_by_cols}"
-            )
-        elif not group_by_cols:
-            group_by_cols = gby_cols_for_metric[:]
-    return group_by_cols
-
-
 class Connection:
     """Connection to a Pinot database."""
 
