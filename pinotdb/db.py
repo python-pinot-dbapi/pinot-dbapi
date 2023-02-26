@@ -1,5 +1,6 @@
 import asyncio
 from functools import wraps
+from typing import Any
 
 import ciso8601
 import json
@@ -599,7 +600,7 @@ def apply_parameters(operation, parameters):
     return operation % escaped_parameters
 
 
-def escape(value):
+def escape(value: Any) -> Any:
     if value == "*":
         return value
     elif isinstance(value, str):
@@ -610,3 +611,4 @@ def escape(value):
         return value
     elif isinstance(value, (list, tuple)):
         return ", ".join(str(escape(element)) for element in value)
+    return value

@@ -725,3 +725,6 @@ class EscapeTest(TestCase):
 
     def test_escapes_list(self):
         self.assertEqual(db.escape([1, 'two']), "1, 'two'")
+
+    def test_bypasses_escaping_unknown_types(self):
+        self.assertEqual(db.escape({1, 2}), {1, 2})
