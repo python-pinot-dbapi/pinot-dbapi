@@ -288,23 +288,26 @@ class AsyncConnectionTest(IsolatedAsyncioTestCase):
 
 class CursorTest(TestCase):
     def create_cursor(
-            self, result_table: Dict[str, Any], status_code: int = 200,
-            debug: bool = False,
+            self, result_table: Optional[Dict[str, Any]] = None,
+            status_code: int = 200, debug: bool = False,
             extra_payload: Optional[Dict[str, Any]] = None,
             username: Optional[str] = None,
             password: Optional[str] = None,
+            preserve_types: bool = False,
     ) -> db.Cursor:
         cursor = db.Cursor(
             host='localhost', session=MagicMock(spec=httpx.Client),
             debug=debug, username=username, password=password,
+            preserve_types=preserve_types,
         )
         cursor.session.is_closed = False
         response = cursor.session.post.return_value
         payload = {
             'numServersResponded': 1,
             'numServersQueried': 1,
-            'resultTable': result_table,
         }
+        if result_table is not None:
+            payload['resultTable'] = result_table
         if extra_payload:
             payload.update(extra_payload)
         response.json.return_value = payload
@@ -424,15 +427,7 @@ class CursorTest(TestCase):
             cursor.fetchone()
 
     def test_executes_query_within_session_with_empty_results(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client))
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-        }
-        response.status_code = 200
+        cursor = self.create_cursor()
 
         cursor.execute('some statement')
 
@@ -442,15 +437,7 @@ class CursorTest(TestCase):
             'http://localhost:8099/query/sql', json={'sql': 'some statement'})
 
     def test_executes_query_within_session_with_query_options(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client))
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-        }
-        response.status_code = 200
+        cursor = self.create_cursor()
 
         cursor.execute('some statement', queryOptions={'foo': 'bar'})
 
@@ -461,17 +448,7 @@ class CursorTest(TestCase):
                 'sql': 'some statement', 'queryOptions': {'foo': 'bar'}})
 
     def test_executes_query_preserving_types(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client),
-            preserve_types=True,
-        )
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-        }
-        response.status_code = 200
+        cursor = self.create_cursor(preserve_types=True)
 
         cursor.execute('some statement')
 
