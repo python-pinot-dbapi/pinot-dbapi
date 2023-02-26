@@ -1,4 +1,5 @@
 import datetime
+from typing import Any, Dict, Optional
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
@@ -286,6 +287,30 @@ class AsyncConnectionTest(IsolatedAsyncioTestCase):
 
 
 class CursorTest(TestCase):
+    def create_cursor(
+            self, result_table: Dict[str, Any], status_code: int = 200,
+            debug: bool = False,
+            extra_payload: Optional[Dict[str, Any]] = None,
+            username: Optional[str] = None,
+            password: Optional[str] = None,
+    ) -> db.Cursor:
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client),
+            debug=debug, username=username, password=password,
+        )
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        payload = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+            'resultTable': result_table,
+        }
+        if extra_payload:
+            payload.update(extra_payload)
+        response.json.return_value = payload
+        response.status_code = status_code
+        return cursor
+
     def test_instantiates_with_basic_url(self):
         cursor = db.Cursor(host='localhost', session=httpx.Client())
 
@@ -457,11 +482,6 @@ class CursorTest(TestCase):
             json={'sql': "some statement OPTION(preserveType='true')"})
 
     def test_executes_query_with_complex_results(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client),
-        )
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
         data = [
             ('age', 'INT', 12),
             ('name', 'STRING', 'John'),
@@ -470,20 +490,15 @@ class CursorTest(TestCase):
             ('extras', 'JSON', '{"foo": "bar"}'),
             ('pet_peeve', 'UNKNOWN', 'bicycles'),
         ]
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-            'resultTable': {
-                'dataSchema': {
-                    'columnNames': [d[0] for d in data],
-                    'columnDataTypes': [d[1] for d in data],
-                },
-                'rows': [
-                    [d[2] for d in data],
-                ],
+        cursor = self.create_cursor({
+            'dataSchema': {
+                'columnNames': [d[0] for d in data],
+                'columnDataTypes': [d[1] for d in data],
             },
-        }
-        response.status_code = 200
+            'rows': [
+                [d[2] for d in data],
+            ],
+        })
 
         cursor.execute('some statement')
 
@@ -494,28 +509,15 @@ class CursorTest(TestCase):
         ])
 
     def test_executes_query_with_simple_results(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client),
-        )
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
-        data = [
-            ('age', 'INT', 12),
-        ]
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-            'resultTable': {
-                'dataSchema': {
-                    'columnNames': [d[0] for d in data],
-                    'columnDataTypes': [d[1] for d in data],
-                },
-                'rows': [
-                    [d[2] for d in data],
-                ],
+        cursor = self.create_cursor({
+            'dataSchema': {
+                'columnNames': ['age'],
+                'columnDataTypes': ['INT'],
             },
-        }
-        response.status_code = 200
+            'rows': [
+                [12],
+            ],
+        })
 
         cursor.execute('some statement')
 
@@ -525,28 +527,15 @@ class CursorTest(TestCase):
         ])
 
     def test_executes_query_with_none(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client),
-        )
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
-        data = [
-            ('age', 'UNKNOWN', None),
-        ]
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-            'resultTable': {
-                'dataSchema': {
-                    'columnNames': [d[0] for d in data],
-                    'columnDataTypes': [d[1] for d in data],
-                },
-                'rows': [
-                    [None],
-                ],
+        cursor = self.create_cursor({
+            'dataSchema': {
+                'columnNames': ['age'],
+                'columnDataTypes': ['UNKNOWN'],
             },
-        }
-        response.status_code = 200
+            'rows': [
+                [None],
+            ],
+        })
 
         cursor.execute('some statement')
 
@@ -556,29 +545,15 @@ class CursorTest(TestCase):
         ])
 
     def test_executes_query_with_auth(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client),
-            username='john.doe', password='mypass',
-        )
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
-        data = [
-            ('age', 'UNKNOWN', None),
-        ]
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-            'resultTable': {
-                'dataSchema': {
-                    'columnNames': [d[0] for d in data],
-                    'columnDataTypes': [d[1] for d in data],
-                },
-                'rows': [
-                    [None],
-                ],
+        cursor = self.create_cursor({
+            'dataSchema': {
+                'columnNames': ['age'],
+                'columnDataTypes': ['INT'],
             },
-        }
-        response.status_code = 200
+            'rows': [
+                [1],
+            ],
+        }, username='john.doe', password='mypass')
 
         cursor.execute('some statement')
 
@@ -600,78 +575,38 @@ class CursorTest(TestCase):
             cursor.execute('some statement')
 
     def test_raises_database_error_if_server_exception(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client))
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-            'exceptions': ['something', 'wrong'],
-        }
-        response.status_code = 200
+        cursor = self.create_cursor({}, extra_payload={
+            'exceptions': ['something', 'wrong']
+        })
 
         with self.assertRaises(exceptions.DatabaseError):
             cursor.execute('some statement')
 
     def test_raises_database_error_if_no_column_names(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client))
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-            'resultTable': {
-                'dataSchema': {
-                    'columnNames': [],
-                    'columnDataTypes': [],
-                },
-                'rows': [],
+        cursor = self.create_cursor({
+            'dataSchema': {
+                'columnNames': [],
+                'columnDataTypes': [],
             },
-        }
-        response.status_code = 200
+            'rows': [],
+        })
 
         with self.assertRaises(exceptions.DatabaseError):
             cursor.execute('some statement')
 
-    def test_executes_query_within_session_with_debug_enabled(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client), debug=True)
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-        }
-        response.status_code = 200
-
-        cursor.execute('some statement')
-
-        # All good, no errors
-
     def test_executes_query_with_results_and_debug_enabled(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client), debug=True)
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
         data = [
             ('age', 'INT', 12),
         ]
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-            'resultTable': {
-                'dataSchema': {
-                    'columnNames': [d[0] for d in data],
-                    'columnDataTypes': [d[1] for d in data],
-                },
-                'rows': [
-                    [d[2] for d in data],
-                ],
+        cursor = self.create_cursor({
+            'dataSchema': {
+                'columnNames': [d[0] for d in data],
+                'columnDataTypes': [d[1] for d in data],
             },
-        }
-        response.status_code = 200
+            'rows': [
+                [d[2] for d in data],
+            ],
+        }, debug=True)
 
         with patch.object(db, 'logger') as mock_logger:
             cursor.execute('some statement')
@@ -679,48 +614,29 @@ class CursorTest(TestCase):
             self.assertGreater(len(mock_logger.info.mock_calls), 0)
 
     def test_raises_exception_if_error_in_status_code(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client))
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-        }
-        response.status_code = 400
+        cursor = self.create_cursor({}, status_code=400)
 
         with self.assertRaises(exceptions.ProgrammingError):
             cursor.execute('some statement')
 
     def test_cannot_execute_many(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client))
+        cursor = self.create_cursor({})
 
         with self.assertRaises(exceptions.NotSupportedError):
             cursor.executemany('some statement')
 
     def test_fetches_many_results(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client),
-        )
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-            'resultTable': {
-                'dataSchema': {
-                    'columnNames': ['age'],
-                    'columnDataTypes': ['INT'],
-                },
-                'rows': [
-                    [1],
-                    [2],
-                    [3],
-                ],
+        cursor = self.create_cursor({
+            'dataSchema': {
+                'columnNames': ['age'],
+                'columnDataTypes': ['INT'],
             },
-        }
-        response.status_code = 200
+            'rows': [
+                [1],
+                [2],
+                [3],
+            ],
+        })
 
         cursor.execute('some statement')
 
@@ -730,27 +646,17 @@ class CursorTest(TestCase):
         ])
 
     def test_fetches_all_results(self):
-        cursor = db.Cursor(
-            host='localhost', session=MagicMock(spec=httpx.Client),
-        )
-        cursor.session.is_closed = False
-        response = cursor.session.post.return_value
-        response.json.return_value = {
-            'numServersResponded': 1,
-            'numServersQueried': 1,
-            'resultTable': {
-                'dataSchema': {
-                    'columnNames': ['age'],
-                    'columnDataTypes': ['INT'],
-                },
-                'rows': [
-                    [1],
-                    [2],
-                    [3],
-                ],
+        cursor = self.create_cursor({
+            'dataSchema': {
+                'columnNames': ['age'],
+                'columnDataTypes': ['INT'],
             },
-        }
-        response.status_code = 200
+            'rows': [
+                [1],
+                [2],
+                [3],
+            ],
+        })
 
         cursor.execute('some statement')
 
