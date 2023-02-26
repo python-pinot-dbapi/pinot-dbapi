@@ -459,7 +459,6 @@ class CursorTest(TestCase):
     def test_executes_query_with_complex_results(self):
         cursor = db.Cursor(
             host='localhost', session=MagicMock(spec=httpx.Client),
-            preserve_types=True,
         )
         cursor.session.is_closed = False
         response = cursor.session.post.return_value
@@ -497,7 +496,6 @@ class CursorTest(TestCase):
     def test_executes_query_with_simple_results(self):
         cursor = db.Cursor(
             host='localhost', session=MagicMock(spec=httpx.Client),
-            preserve_types=True,
         )
         cursor.session.is_closed = False
         response = cursor.session.post.return_value
@@ -529,7 +527,6 @@ class CursorTest(TestCase):
     def test_executes_query_with_none(self):
         cursor = db.Cursor(
             host='localhost', session=MagicMock(spec=httpx.Client),
-            preserve_types=True,
         )
         cursor.session.is_closed = False
         response = cursor.session.post.return_value
@@ -701,3 +698,64 @@ class CursorTest(TestCase):
 
         with self.assertRaises(exceptions.NotSupportedError):
             cursor.executemany('some statement')
+
+    def test_fetches_many_results(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client),
+        )
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+            'resultTable': {
+                'dataSchema': {
+                    'columnNames': ['age'],
+                    'columnDataTypes': ['INT'],
+                },
+                'rows': [
+                    [1],
+                    [2],
+                    [3],
+                ],
+            },
+        }
+        response.status_code = 200
+
+        cursor.execute('some statement')
+
+        self.assertEqual(cursor.fetchmany(2), [
+            [1],
+            [2],
+        ])
+
+    def test_fetches_all_results(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client),
+        )
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+            'resultTable': {
+                'dataSchema': {
+                    'columnNames': ['age'],
+                    'columnDataTypes': ['INT'],
+                },
+                'rows': [
+                    [1],
+                    [2],
+                    [3],
+                ],
+            },
+        }
+        response.status_code = 200
+
+        cursor.execute('some statement')
+
+        self.assertEqual(cursor.fetchall(), [
+            [1],
+            [2],
+            [3],
+        ])
