@@ -608,19 +608,12 @@ class CursorTest(TestCase):
                 'columnNames': ['age'],
                 'columnDataTypes': ['INT'],
             },
-            'rows': [
-                [1],
-                [2],
-                [3],
-            ],
+            'rows': [[1], [2], [3]],
         })
 
         cursor.execute('some statement')
 
-        self.assertEqual(cursor.fetchmany(2), [
-            [1],
-            [2],
-        ])
+        self.assertEqual(cursor.fetchmany(2), [[1], [2]])
 
     def test_fetches_all_results(self):
         cursor = self.create_cursor({
@@ -628,17 +621,39 @@ class CursorTest(TestCase):
                 'columnNames': ['age'],
                 'columnDataTypes': ['INT'],
             },
-            'rows': [
-                [1],
-                [2],
-                [3],
-            ],
+            'rows': [[1], [2], [3]],
         })
 
         cursor.execute('some statement')
 
-        self.assertEqual(cursor.fetchall(), [
-            [1],
-            [2],
-            [3],
-        ])
+        self.assertEqual(cursor.fetchall(), [[1], [2], [3]])
+
+    def test_fetches_with_schema(self):
+        cursor = self.create_cursor({
+            'dataSchema': {
+                'columnNames': ['age'],
+                'columnDataTypes': ['INT'],
+            },
+            'rows': [[1]],
+        })
+
+        cursor.execute('some statement')
+
+        self.assertEqual(cursor.fetchwithschema(), {
+            'results': [[1]],
+            'schema': [{'name': 'age', 'type': 'INT'}]
+        })
+
+    def test_does_nothing_for_setinputsizes(self):
+        cursor = self.create_cursor()
+
+        cursor.setinputsizes(123)
+
+        # All good, nothing happened
+
+    def test_does_nothing_for_setoutputsizes(self):
+        cursor = self.create_cursor()
+
+        cursor.setoutputsizes(123)
+
+        # All good, nothing happened
