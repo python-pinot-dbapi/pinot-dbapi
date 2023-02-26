@@ -604,9 +604,9 @@ def escape(value):
         return value
     elif isinstance(value, str):
         return "'{}'".format(value.replace("'", "''"))
-    elif isinstance(value, (int, float)):
-        return value
     elif isinstance(value, bool):
         return "TRUE" if value else "FALSE"
+    elif isinstance(value, (int, float)):
+        return value
     elif isinstance(value, (list, tuple)):
         return ", ".join(escape(element) for element in value)

@@ -704,3 +704,21 @@ class AsyncCursorTest(IsolatedAsyncioTestCase):
             json={'sql': 'some statement'},
             auth=(b'john.doe', b'mypass'),
         )
+
+
+class EscapeTest(TestCase):
+    def test_escapes_asterisk(self):
+        self.assertEqual(db.escape('*'), '*')
+
+    def test_escapes_string(self):
+        self.assertEqual(db.escape("what 'foo' means"), "'what ''foo'' means'")
+
+    def test_escapes_int(self):
+        self.assertEqual(db.escape(1), 1)
+
+    def test_escapes_float(self):
+        self.assertEqual(db.escape(1.0), 1.0)
+
+    def test_escapes_bool(self):
+        self.assertEqual(db.escape(True), 'TRUE')
+        self.assertEqual(db.escape(False), 'FALSE')
