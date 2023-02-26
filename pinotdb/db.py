@@ -449,7 +449,7 @@ class Cursor:
 
         logger.debug(
             f"Got the rows as a type {type(rows)} of size {len(rows)}")
-        if logger.isEnabledFor(logging.DEBUG):
+        if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
             logger.debug(pformat(rows))
         self.description = None
         self._results = []

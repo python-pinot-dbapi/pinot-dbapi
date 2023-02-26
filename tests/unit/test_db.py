@@ -1,6 +1,6 @@
 import datetime
 from unittest import TestCase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import httpx
 
@@ -558,6 +558,39 @@ class CursorTest(TestCase):
             [None],
         ])
 
+    def test_executes_query_with_auth(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client),
+            username='john.doe', password='mypass',
+        )
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        data = [
+            ('age', 'UNKNOWN', None),
+        ]
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+            'resultTable': {
+                'dataSchema': {
+                    'columnNames': [d[0] for d in data],
+                    'columnDataTypes': [d[1] for d in data],
+                },
+                'rows': [
+                    [None],
+                ],
+            },
+        }
+        response.status_code = 200
+
+        cursor.execute('some statement')
+
+        cursor.session.post.assert_called_once_with(
+            'http://localhost:8099/query/sql',
+            json={'sql': 'some statement'},
+            auth=(b'john.doe', b'mypass'),
+        )
+
     def test_raises_database_error_if_problem_with_json(self):
         cursor = db.Cursor(
             host='localhost', session=MagicMock(spec=httpx.Client))
@@ -584,6 +617,27 @@ class CursorTest(TestCase):
         with self.assertRaises(exceptions.DatabaseError):
             cursor.execute('some statement')
 
+    def test_raises_database_error_if_no_column_names(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client))
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+            'resultTable': {
+                'dataSchema': {
+                    'columnNames': [],
+                    'columnDataTypes': [],
+                },
+                'rows': [],
+            },
+        }
+        response.status_code = 200
+
+        with self.assertRaises(exceptions.DatabaseError):
+            cursor.execute('some statement')
+
     def test_executes_query_within_session_with_debug_enabled(self):
         cursor = db.Cursor(
             host='localhost', session=MagicMock(spec=httpx.Client), debug=True)
@@ -599,6 +653,34 @@ class CursorTest(TestCase):
 
         # All good, no errors
 
+    def test_executes_query_with_results_and_debug_enabled(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client), debug=True)
+        cursor.session.is_closed = False
+        response = cursor.session.post.return_value
+        data = [
+            ('age', 'INT', 12),
+        ]
+        response.json.return_value = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+            'resultTable': {
+                'dataSchema': {
+                    'columnNames': [d[0] for d in data],
+                    'columnDataTypes': [d[1] for d in data],
+                },
+                'rows': [
+                    [d[2] for d in data],
+                ],
+            },
+        }
+        response.status_code = 200
+
+        with patch.object(db, 'logger') as mock_logger:
+            cursor.execute('some statement')
+
+            self.assertGreater(len(mock_logger.info.mock_calls), 0)
+
     def test_raises_exception_if_error_in_status_code(self):
         cursor = db.Cursor(
             host='localhost', session=MagicMock(spec=httpx.Client))
@@ -612,3 +694,10 @@ class CursorTest(TestCase):
 
         with self.assertRaises(exceptions.ProgrammingError):
             cursor.execute('some statement')
+
+    def test_cannot_execute_many(self):
+        cursor = db.Cursor(
+            host='localhost', session=MagicMock(spec=httpx.Client))
+
+        with self.assertRaises(exceptions.NotSupportedError):
+            cursor.executemany('some statement')
