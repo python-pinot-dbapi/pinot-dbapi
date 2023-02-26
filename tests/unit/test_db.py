@@ -722,3 +722,6 @@ class EscapeTest(TestCase):
     def test_escapes_bool(self):
         self.assertEqual(db.escape(True), 'TRUE')
         self.assertEqual(db.escape(False), 'FALSE')
+
+    def test_escapes_list(self):
+        self.assertEqual(db.escape([1, 'two']), "1, 'two'")

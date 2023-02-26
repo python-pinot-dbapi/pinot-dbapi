@@ -609,4 +609,4 @@ def escape(value):
     elif isinstance(value, (int, float)):
         return value
     elif isinstance(value, (list, tuple)):
-        return ", ".join(escape(element) for element in value)
+        return ", ".join(str(escape(element)) for element in value)
