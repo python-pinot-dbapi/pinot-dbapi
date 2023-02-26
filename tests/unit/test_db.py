@@ -261,7 +261,7 @@ class AsyncConnectionTest(IsolatedAsyncioTestCase):
         This test tests whether the library is capable of executing statements
         against Pinot by sending requests to it via its API endpoints.
 
-        With this test we're not yet focusing on how the request format or
+        With this test we're not yet focusing on the request format or
         anything like that, since it's not the Connection's responsibility to
         do that.
         """
@@ -657,3 +657,50 @@ class CursorTest(TestCase):
         cursor.setoutputsizes(123)
 
         # All good, nothing happened
+
+
+class AsyncCursorTest(IsolatedAsyncioTestCase):
+    def create_cursor(
+            self, result_table: Optional[Dict[str, Any]] = None,
+            status_code: int = 200, debug: bool = False,
+            extra_payload: Optional[Dict[str, Any]] = None,
+            username: Optional[str] = None,
+            password: Optional[str] = None,
+            preserve_types: bool = False,
+    ) -> db.AsyncCursor:
+        cursor = db.AsyncCursor(
+            host='localhost', session=AsyncMock(spec=httpx.AsyncClient),
+            debug=debug, username=username, password=password,
+            preserve_types=preserve_types,
+        )
+        cursor.session.is_closed = False
+        payload = {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+        }
+        if result_table is not None:
+            payload['resultTable'] = result_table
+        if extra_payload:
+            payload.update(extra_payload)
+        response = httpx.Response(200, json=payload)
+        cursor.session.post.return_value = response
+        return cursor
+
+    async def test_executes_query_with_auth(self):
+        cursor = self.create_cursor({
+            'dataSchema': {
+                'columnNames': ['age'],
+                'columnDataTypes': ['INT'],
+            },
+            'rows': [
+                [1],
+            ],
+        }, username='john.doe', password='mypass')
+
+        await cursor.execute('some statement')
+
+        cursor.session.post.assert_called_once_with(
+            'http://localhost:8099/query/sql',
+            json={'sql': 'some statement'},
+            auth=(b'john.doe', b'mypass'),
+        )
