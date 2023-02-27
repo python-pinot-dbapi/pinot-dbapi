@@ -43,15 +43,12 @@ class PinotCompiler(compiler.SQLCompiler):
         render_label_as_label=None,
         **kw,
     ):
-        if kw:
-            render_label_as_label = kw.pop("render_label_as_label", None)
-        render_label_as_label = None
         return super().visit_label(
             label,
             add_to_result_map,
             within_label_clause,
             within_columns_clause,
-            render_label_as_label,
+            render_label_as_label=None,
             **kw,
         )
 

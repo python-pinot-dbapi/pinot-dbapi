@@ -12,15 +12,18 @@ for now.
 
 from unittest import TestCase
 
+from sqlalchemy import Column, Integer, MetaData, Table, column, select
 from sqlalchemy.engine import make_url
 
-import pinotdb.sqlalchemy as ps
+from pinotdb import sqlalchemy as ps
 
 
-class PinotDialectTest(TestCase):
+class PinotTestCase(TestCase):
     def setUp(self) -> None:
         self.dialect = ps.PinotDialect()
 
+
+class PinotDialectTest(PinotTestCase):
     def test_creates_connection_args(self):
         url = make_url(
             'pinot://localhost:8000/query/sql?controller='
@@ -39,3 +42,50 @@ class PinotDialectTest(TestCase):
             'password': None,
             'verify_ssl': True,
         })
+
+
+class PinotCompilerTest(PinotTestCase):
+    def test_can_do_simple_select(self):
+        metadata = MetaData()
+        table = Table(
+            'some_table', metadata,
+            Column('some_column', Integer)
+        )
+        statement = select(column('some_column')).select_from(table)
+
+        compiler = self.dialect.statement_compiler(self.dialect, statement)
+
+        self.assertEqual(
+            str(compiler),
+            'SELECT some_column \nFROM some_table',
+        )
+
+    def test_can_do_select_with_reserved_words(self):
+        metadata = MetaData()
+        table = Table(
+            'some_table', metadata,
+            Column('order', Integer)
+        )
+        statement = select(column('order')).select_from(table)
+
+        compiler = self.dialect.statement_compiler(self.dialect, statement)
+
+        self.assertEqual(
+            str(compiler),
+            'SELECT "order" \nFROM some_table',
+        )
+
+    def test_can_do_select_with_labels(self):
+        metadata = MetaData()
+        table = Table(
+            'some_table', metadata,
+            Column('order', Integer)
+        )
+        statement = select(column('order').label('ord')).select_from(table)
+
+        compiler = self.dialect.statement_compiler(self.dialect, statement)
+
+        self.assertEqual(
+            str(compiler),
+            'SELECT "order" AS ord \nFROM some_table',
+        )
