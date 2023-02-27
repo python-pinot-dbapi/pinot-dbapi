@@ -15,6 +15,7 @@ from unittest import TestCase
 from sqlalchemy import Column, Integer, MetaData, REAL, Table, column, select
 from sqlalchemy.engine import make_url
 
+import pinotdb
 from pinotdb import exceptions, sqlalchemy as ps
 
 
@@ -24,6 +25,16 @@ class PinotTestCase(TestCase):
 
 
 class PinotDialectTest(PinotTestCase):
+    def test_gets_pinot_db_module_as_dbapi(self):
+        """
+        The dialect exports the symbols necessary to implement the DBAPI 2
+        protocol, so this is what's being tested here.
+        """
+
+        api = ps.PinotDialect.dbapi()
+
+        self.assertIs(api, pinotdb)
+
     def test_creates_connection_args(self):
         url = make_url(
             'pinot://localhost:8000/query/sql?controller='
@@ -42,6 +53,34 @@ class PinotDialectTest(PinotTestCase):
             'password': None,
             'verify_ssl': True,
         })
+
+    def test_creates_connection_args_without_query(self):
+        url = make_url('pinot://localhost:8000/query/sql')
+
+        cargs, cparams = self.dialect.create_connect_args(url)
+
+        self.assertEqual(cargs, [])
+        self.assertEqual(cparams, {
+            'debug': False,
+            'scheme': 'http',
+            'host': 'localhost',
+            'port': 8000,
+            'path': 'query/sql',
+            'username': None,
+            'password': None,
+            'verify_ssl': True,
+        })
+
+    def test_can_instantiate_with_server(self):
+        dialect = ps.PinotDialect(server='http://localhost:9000/')
+
+        self.assertEqual(dialect._controller, 'http://localhost:9000/')
+
+    def test_gets_insecure_broker_port_by_default(self):
+        self.assertEqual(self.dialect.get_default_broker_port(), 8000)
+
+    def test_gets_secure_broker_port_from_https_dialect(self):
+        self.assertEqual(ps.PinotHTTPSDialect().get_default_broker_port(), 443)
 
 
 class PinotCompilerTest(PinotTestCase):
