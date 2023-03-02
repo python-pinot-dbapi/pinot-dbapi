@@ -11,6 +11,8 @@ from pinotdb import exceptions
 from pinotdb import keywords
 import logging
 
+import json
+
 logger = logging.getLogger(__name__)
 
 
@@ -290,6 +292,23 @@ class PinotDialect(default.DefaultDialect):
 
     def _check_unicode_description(self, connection):
         return True
+    
+    # Fix for SQL Alchemy error
+    def _json_deserializer(self, content: any):
+        """
+        This function fixes the following error from SQLAlchemy: 
+
+        Traceback (most recent call last):
+        File "...sqlalchemy/sql/sqltypes.py", line 2714, in result_processor
+        json_deserializer = dialect._json_deserializer or json.loads
+        AttributeError: 'PinotDialect' object has no attribute '_json_deserializer'
+
+        The expected behavior is to simply return the passed object (called `content`) because the json.loads() method should already have been called in `db.py`. However, if the content is still one of the supported types for json.loads to deserialize, it will try to do so.
+        """
+        if isinstance(content, str) or isinstance(content, bytearray) or isinstance(content, bytes):
+            return json.loads(content)
+        else:
+            return content
 
 
 PinotHTTPDialect = PinotDialect
