@@ -20,6 +20,6 @@ poetry:
 	pip install poetry
 
 run-pinot:
-	docker run --name pinot-quickstart -p 2123:2123 -p 9000:9000 -p 8000:8000 apachepinot/pinot:latest QuickStart -type batch
+	docker run --name pinot-quickstart -p 2123:2123 -p 9000:9000 -p 8000:8000 apachepinot/pinot:latest QuickStart -type MULTI_STAGE
 
 .PHONY: init test lock poetry run-pinot

@@ -162,6 +162,7 @@ class Connection:
         self._args = args
         self._kwargs = kwargs
         self.closed = False
+        self.use_multistage_engine = kwargs.get('use_multistage_engine', False)
         self.cursors = []
         self.session = kwargs.get('session')
         self.is_session_external = False
@@ -312,6 +313,7 @@ class Cursor:
         # TODO: Move this parameter when we can afford to break the
         #  interface (e.g. new minor version).
         session=None,
+        use_multistage_engine=False,
         **kwargs
     ):
         if path == "query":
@@ -334,6 +336,7 @@ class Cursor:
         self._results = None
         self._debug = debug
         self._preserve_types = preserve_types
+        self._use_multistage_engine = use_multistage_engine
         self.acceptable_respond_fraction = acceptable_respond_fraction
         if ignore_exception_error_codes:
             self._ignore_exception_error_codes = set(
@@ -396,6 +399,11 @@ class Cursor:
         if self._preserve_types:
             query += " OPTION(preserveType='true')"
 
+        if self._use_multistage_engine:
+            if queryOptions:
+                queryOptions += ";useMultistageEngine=true"
+            else:
+                queryOptions = "useMultistageEngine=true"
         if queryOptions:
             return {"sql": query, "queryOptions": queryOptions}
         else:

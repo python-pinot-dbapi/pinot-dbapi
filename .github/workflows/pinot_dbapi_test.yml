@@ -54,7 +54,7 @@ jobs:
           docker-image: apachepinot/pinot:latest
           controller-forward-port: 9000
           broker-forward-port: 8000
-          arguments: QuickStart -type BATCH
+          arguments: QuickStart -type MULTI_STAGE
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
