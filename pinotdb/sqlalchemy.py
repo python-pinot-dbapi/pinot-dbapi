@@ -147,6 +147,8 @@ class PinotDialect(default.DefaultDialect):
         super().__init__(*args, **kwargs)
 
         self._controller = None
+        self._username = None
+        self._password = None
         self._debug = False
         self._verify_ssl = True
         self.update_from_kwargs(kwargs)

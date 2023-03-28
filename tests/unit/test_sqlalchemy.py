@@ -12,7 +12,8 @@ for now.
 
 from unittest import TestCase
 
-from sqlalchemy import Column, Integer, MetaData, REAL, Table, column, select
+import responses
+from sqlalchemy import Column, Integer, MetaData, Table, column, select
 from sqlalchemy.engine import make_url
 
 import pinotdb
@@ -21,7 +22,7 @@ from pinotdb import exceptions, sqlalchemy as ps
 
 class PinotTestCase(TestCase):
     def setUp(self) -> None:
-        self.dialect = ps.PinotDialect()
+        self.dialect = ps.PinotDialect(server='http://localhost:9000')
 
 
 class PinotDialectTest(PinotTestCase):
@@ -81,6 +82,15 @@ class PinotDialectTest(PinotTestCase):
 
     def test_gets_secure_broker_port_from_https_dialect(self):
         self.assertEqual(ps.PinotHTTPSDialect().get_default_broker_port(), 443)
+
+    @responses.activate
+    def test_gets_metadata_from_controller(self):
+        url = f'{self.dialect._controller}/some-path'
+        responses.get(url, json={'foo': 'bar'})
+
+        metadata = self.dialect.get_metadata_from_controller('some-path')
+
+        self.assertEqual(metadata, {'foo': 'bar'})
 
 
 class PinotCompilerTest(PinotTestCase):
