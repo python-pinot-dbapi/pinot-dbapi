@@ -103,3 +103,4 @@ ENV/
 .mypy_cache/
 
 pinotdb.egg-info
+*.orig

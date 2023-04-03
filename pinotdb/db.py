@@ -1,5 +1,6 @@
 import asyncio
 from functools import wraps
+from typing import Any
 
 import ciso8601
 import json
@@ -129,29 +130,6 @@ def get_types_from_column_data_types(column_data_types):
             types[column_index] = TypeCodeAndValue(
                 Type.STRING, is_iterable, True)
     return types
-
-
-def get_group_by_column_names(aggregation_results):
-    group_by_cols = []
-    for metric in aggregation_results:
-        metric_name = metric.get("function", "noname")
-        gby_cols_for_metric = metric.get("groupByColumns", [])
-        if group_by_cols and group_by_cols != gby_cols_for_metric:
-            raise exceptions.DatabaseError(
-                f"Cols for metric {metric_name}: {gby_cols_for_metric} "
-                f"differ from other columns {group_by_cols}"
-            )
-        elif not group_by_cols:
-            group_by_cols = gby_cols_for_metric[:]
-    return group_by_cols
-
-
-def is_iterable(value):
-    try:
-        _ = iter(value)
-        return True
-    except TypeError:
-        return False
 
 
 class Connection:
@@ -472,7 +450,7 @@ class Cursor:
 
         logger.debug(
             f"Got the rows as a type {type(rows)} of size {len(rows)}")
-        if logger.isEnabledFor(logging.DEBUG):
+        if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
             logger.debug(pformat(rows))
         self.description = None
         self._results = []
@@ -622,14 +600,13 @@ def apply_parameters(operation, parameters):
     return operation % escaped_parameters
 
 
-def escape(value):
+def escape(value: Any) -> Any:
     if value == "*":
         return value
     elif isinstance(value, str):
         return "'{}'".format(value.replace("'", "''"))
-    elif isinstance(value, (int, float)):
-        return value
     elif isinstance(value, bool):
         return "TRUE" if value else "FALSE"
     elif isinstance(value, (list, tuple)):
-        return ", ".join(escape(element) for element in value)
+        return ", ".join(str(escape(element)) for element in value)
+    return value
