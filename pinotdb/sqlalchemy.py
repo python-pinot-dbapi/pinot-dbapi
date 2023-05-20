@@ -126,6 +126,7 @@ class PinotDialect(default.DefaultDialect):
     name = "pinot"
     scheme = "http"
     driver = "rest"
+    engine_type = "v1"
     preparer = PinotIdentifierPareparer
     statement_compiler = PinotCompiler
     type_compiler = PinotTypeCompiler
@@ -193,6 +194,8 @@ class PinotDialect(default.DefaultDialect):
             "password": url.password,
             "verify_ssl": self._verify_ssl or True,
         }
+        if self.engine_type == "multi_stage":
+            kwargs.update({"use_multistage_engine": True})
         if url.query:
             kwargs.update(url.query)
 
@@ -296,6 +299,15 @@ PinotHTTPDialect = PinotDialect
 
 
 class PinotHTTPSDialect(PinotDialect):
+    scheme = "https"
+
+
+class PinotMultiStageDialect(PinotDialect):
+    engine_type = "multi_stage"
+
+
+class PinotHTTPSMultiStageDialect(PinotDialect):
+    engine_type = "multi_stage"
     scheme = "https"
 
 

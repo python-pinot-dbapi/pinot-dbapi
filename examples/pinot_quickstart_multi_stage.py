@@ -28,7 +28,7 @@ def run_pinot_quickstart_multi_stage_example() -> None:
 
 
 def run_pinot_quickstart_multi_stage_sqlalchemy_example() -> None:
-    registry.register("pinot", "pinotdb.sqlalchemy", "PinotDialect")
+    registry.register("pinot", "pinotdb.sqlalchemy", "PinotMultiStageDialect")
 
     engine = create_engine(
         "pinot://localhost:8000/query/sql?controller=http://localhost:9000/",
@@ -36,13 +36,15 @@ def run_pinot_quickstart_multi_stage_sqlalchemy_example() -> None:
     )  # uses HTTP by default :(
     # engine = create_engine('pinot+http://localhost:8000/query/sql?controller=http://localhost:9000/')
     # engine = create_engine('pinot+https://localhost:8000/query/sql?controller=http://localhost:9000/')
-    args, kwargs = engine.dialect.create_connect_args(engine.url)
+    from sqlalchemy import text
 
-    res = engine.execute("SELECT playerID, runs, yearID FROM baseballStats WHERE runs > 160 LIMIT 10").fetchall()
-    print(res)
-
-    res = engine.execute("SELECT a.playerID, a.runs, a.yearID, b.runs, b.yearID FROM baseballStats AS a JOIN baseballStats AS b ON a.playerID = b.playerID WHERE a.runs > 160 AND b.runs < 2 LIMIT 10").fetchall()
-    print(res)
+    with engine.connect() as connection:
+        result = connection.execute(text("SELECT playerID, runs, yearID FROM baseballStats WHERE runs > 160 LIMIT 10"))
+        for row in result:
+            print(row)
+        result = connection.execute(text("SELECT a.playerID, a.runs, a.yearID, b.runs, b.yearID FROM baseballStats AS a JOIN baseballStats AS b ON a.playerID = b.playerID WHERE a.runs > 160 AND b.runs < 2 LIMIT 10"))
+        for row in result:
+            print(row)
 
 
 def run_main():
