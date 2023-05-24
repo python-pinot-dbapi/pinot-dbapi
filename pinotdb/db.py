@@ -509,8 +509,7 @@ class Cursor:
         sequence of sequences (e.g. a list of tuples).
         """
 
-        results = self._results
-        self._results = None
+        results, self._results = self._results, []
         return results
 
     @check_result
