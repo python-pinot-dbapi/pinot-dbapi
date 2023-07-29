@@ -100,6 +100,11 @@ class PinotDialectTest(PinotTestCase):
         with self.assertRaises(exceptions.DatabaseError):
             self.dialect.get_metadata_from_controller('some-path')
 
+    def test_gets_schema_names(self):
+        names = self.dialect.get_schema_names('some connection')
+
+        self.assertEqual(names, ['default'])
+
 
 class PinotMultiStageDialectTest(PinotTestCase):
     def setUp(self) -> None:

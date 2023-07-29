@@ -211,7 +211,8 @@ class PinotDialect(default.DefaultDialect):
             raise exceptions.DatabaseError(
                 "Got invalid json response from " f"{self._controller}:{path}: {r.text}"
             ) from e
-        if self._debug:
+        # Skipping coverage of log lines - because covering them adds no value.
+        if self._debug:  # pragma: no cover
             logger.info(
                 "metadata get on %s:%s returned %s", self._controller, path, result
             )
