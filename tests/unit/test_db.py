@@ -294,11 +294,13 @@ class CursorTest(TestCase):
             username: Optional[str] = None,
             password: Optional[str] = None,
             preserve_types: bool = False,
+            use_multistage_engine: bool = False,
     ) -> db.Cursor:
         cursor = db.Cursor(
             host='localhost', session=MagicMock(spec=httpx.Client),
             debug=debug, username=username, password=password,
             preserve_types=preserve_types,
+            use_multistage_engine=use_multistage_engine,
         )
         cursor.session.is_closed = False
         response = cursor.session.post.return_value
@@ -457,6 +459,30 @@ class CursorTest(TestCase):
         cursor.session.post.assert_called_once_with(
             'http://localhost:8099/query/sql',
             json={'sql': "some statement OPTION(preserveType='true')"})
+
+    def test_executes_query_using_multistage_engine(self):
+        cursor = self.create_cursor(use_multistage_engine=True)
+
+        cursor.execute('some statement')
+
+        results = list(iter(cursor))
+        self.assertEqual(results, [])
+        cursor.session.post.assert_called_once_with(
+            'http://localhost:8099/query/sql', json={
+                'sql': 'some statement',
+                'queryOptions': 'useMultistageEngine=true'})
+
+    def test_executes_query_using_multistage_engine_plus_options(self):
+        cursor = self.create_cursor(use_multistage_engine=True)
+
+        cursor.execute('some statement', queryOptions='something')
+
+        results = list(iter(cursor))
+        self.assertEqual(results, [])
+        cursor.session.post.assert_called_once_with(
+            'http://localhost:8099/query/sql', json={
+                'sql': 'some statement',
+                'queryOptions': 'something;useMultistageEngine=true'})
 
     def test_executes_query_with_complex_results(self):
         data = [
