@@ -187,6 +187,48 @@ class PinotDialectTest(PinotTestCase):
             },
         ])
 
+    def test_gets_pk_constraint(self):
+        result = self.dialect.get_pk_constraint('conn', 'some-table')
+
+        self.assertEqual(result, {"constrained_columns": [], "name": None})
+
+    def test_gets_table_comment(self):
+        result = self.dialect.get_table_comment('conn', 'some-table')
+
+        self.assertEqual(result, {"text": ""})
+
+    def test_gets_foreign_keys(self):
+        result = self.dialect.get_foreign_keys('conn', 'some-table')
+
+        self.assertEqual(result, [])
+
+    def test_gets_check_constraints(self):
+        result = self.dialect.get_check_constraints('conn', 'some-table')
+
+        self.assertEqual(result, [])
+
+    def test_gets_indexes(self):
+        result = self.dialect.get_indexes('conn', 'some-table')
+
+        self.assertEqual(result, [])
+
+    def test_gets_unique_constraints(self):
+        result = self.dialect.get_unique_constraints('conn', 'some-table')
+
+        self.assertEqual(result, [])
+
+    def test_gets_view_definition(self):
+        self.assertIsNone(self.dialect.get_view_definition('conn', 'table'))
+
+    def test_cannot_rollback(self):
+        self.assertIsNone(self.dialect.do_rollback('conn'))
+
+    def test_checks_unicode_returns(self):
+        self.assertTrue(self.dialect._check_unicode_returns('conn'))
+
+    def test_checks_unicode_description(self):
+        self.assertTrue(self.dialect._check_unicode_description('conn'))
+
 
 class PinotMultiStageDialectTest(PinotTestCase):
     def setUp(self) -> None:
