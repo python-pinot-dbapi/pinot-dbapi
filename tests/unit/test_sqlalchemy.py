@@ -92,6 +92,14 @@ class PinotDialectTest(PinotTestCase):
 
         self.assertEqual(metadata, {'foo': 'bar'})
 
+    @responses.activate
+    def test_cannot_get_metadata_if_broken_json(self):
+        url = f'{self.dialect._controller}/some-path'
+        responses.get(url, body='something')
+
+        with self.assertRaises(exceptions.DatabaseError):
+            metadata = self.dialect.get_metadata_from_controller('some-path')
+
 
 class PinotMultiStageDialectTest(PinotTestCase):
     def setUp(self) -> None:
