@@ -93,6 +93,32 @@ class PinotDialectTest(PinotTestCase):
         self.assertEqual(metadata, {'foo': 'bar'})
 
 
+class PinotMultiStageDialectTest(PinotTestCase):
+    def setUp(self) -> None:
+        self.dialect = ps.PinotMultiStageDialect(
+            server='http://localhost:9000')
+
+    def test_creates_connection_args(self):
+        url = make_url(
+            'pinot://localhost:8000/query/sql?controller='
+            'http://localhost:9000/')
+
+        cargs, cparams = self.dialect.create_connect_args(url)
+
+        self.assertEqual(cargs, [])
+        self.assertEqual(cparams, {
+            'debug': False,
+            'scheme': 'http',
+            'host': 'localhost',
+            'port': 8000,
+            'path': 'query/sql',
+            'username': None,
+            'password': None,
+            'verify_ssl': True,
+            'use_multistage_engine': True,
+        })
+
+
 class PinotCompilerTest(PinotTestCase):
     def test_can_do_simple_select(self):
         metadata = MetaData()
