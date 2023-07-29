@@ -105,6 +105,29 @@ class PinotDialectTest(PinotTestCase):
 
         self.assertEqual(names, ['default'])
 
+    @responses.activate
+    def test_gets_table_names_from_controller(self):
+        url = f'{self.dialect._controller}/tables'
+        responses.get(url, json={'tables': ['foo', 'bar']})
+
+        names = self.dialect.get_table_names('some connection')
+
+        self.assertEqual(names, ['foo', 'bar'])
+
+    @responses.activate
+    def test_checks_that_table_exists(self):
+        url = f'{self.dialect._controller}/tables'
+        responses.get(url, json={'tables': ['foo', 'bar']})
+
+        self.assertTrue(self.dialect.has_table('some connection', 'foo'))
+        self.assertFalse(self.dialect.has_table('some connection', 'none'))
+
+    def test_gets_empty_views(self):
+        self.assertEqual(self.dialect.get_view_names('conn'), [])
+
+    def test_gets_empty_table_options(self):
+        self.assertEqual(self.dialect.get_table_options('conn', 'table'), {})
+
 
 class PinotMultiStageDialectTest(PinotTestCase):
     def setUp(self) -> None:
