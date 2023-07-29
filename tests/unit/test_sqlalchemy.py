@@ -163,6 +163,30 @@ class PinotDialectTest(PinotTestCase):
             },
         ])
 
+    @responses.activate
+    def test_gets_columns_with_time_spec(self):
+        table_name = 'some-table'
+        url = f'{self.dialect._controller}/tables/{table_name}/schema'
+        responses.get(url, json={
+            'tables': [table_name],
+            'timeFieldSpec': {
+                'incomingGranularitySpec': {
+                    'name': 'time', 'dataType': 'STRING'}
+            },
+            'dateTimeFieldSpecs': [],
+        })
+
+        columns = self.dialect.get_columns('conn', table_name)
+
+        self.assertEqual(columns, [
+            {
+                'default': None,
+                'name': 'time',
+                'nullable': True,
+                'type': String,
+            },
+        ])
+
 
 class PinotMultiStageDialectTest(PinotTestCase):
     def setUp(self) -> None:
