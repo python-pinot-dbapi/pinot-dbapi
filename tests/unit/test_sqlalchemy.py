@@ -98,7 +98,7 @@ class PinotDialectTest(PinotTestCase):
         responses.get(url, body='something')
 
         with self.assertRaises(exceptions.DatabaseError):
-            metadata = self.dialect.get_metadata_from_controller('some-path')
+            self.dialect.get_metadata_from_controller('some-path')
 
 
 class PinotMultiStageDialectTest(PinotTestCase):
