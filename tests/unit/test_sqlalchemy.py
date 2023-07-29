@@ -13,7 +13,7 @@ for now.
 from unittest import TestCase
 
 import responses
-from sqlalchemy import Column, Integer, MetaData, Table, column, select
+from sqlalchemy import Column, Integer, MetaData, String, Table, column, select
 from sqlalchemy.engine import make_url
 
 import pinotdb
@@ -127,6 +127,41 @@ class PinotDialectTest(PinotTestCase):
 
     def test_gets_empty_table_options(self):
         self.assertEqual(self.dialect.get_table_options('conn', 'table'), {})
+
+    @responses.activate
+    def test_gets_columns_from_server(self):
+        table_name = 'some-table'
+        url = f'{self.dialect._controller}/tables/{table_name}/schema'
+        responses.get(url, json={
+            'tables': [table_name],
+            'timeFieldSpec': {},
+            'dimensionFieldSpecs': [{'name': 'foo', 'dataType': 'STRING'}],
+            'metricFieldSpecs': [{'name': 'bar', 'dataType': 'STRING'}],
+            'dateTimeFieldSpecs': [{'name': 'baz', 'dataType': 'STRING'}],
+        })
+
+        columns = self.dialect.get_columns('conn', table_name)
+
+        self.assertEqual(columns, [
+            {
+                'default': None,
+                'name': 'foo',
+                'nullable': True,
+                'type': String,
+            },
+            {
+                'default': None,
+                'name': 'bar',
+                'nullable': True,
+                'type': String,
+            },
+            {
+                'default': None,
+                'name': 'baz',
+                'nullable': True,
+                'type': String,
+            },
+        ])
 
 
 class PinotMultiStageDialectTest(PinotTestCase):
