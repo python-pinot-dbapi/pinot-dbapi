@@ -13,7 +13,10 @@ for now.
 from unittest import TestCase
 
 import responses
-from sqlalchemy import Column, Integer, MetaData, String, Table, column, select
+from sqlalchemy import (
+    BigInteger, Column, Integer, MetaData, String, Table,
+    column, select,
+)
 from sqlalchemy.engine import make_url
 
 import pinotdb
@@ -172,7 +175,7 @@ class PinotDialectTest(PinotTestCase):
             'timeFieldSpec': {},
             'dimensionFieldSpecs': [{
                 'name': 'foo',
-                'dataType': 'STRING',
+                'dataType': 'INT',
                 'defaultNullValue': 123,
             }],
         })
@@ -184,7 +187,7 @@ class PinotDialectTest(PinotTestCase):
                 'default': '123',
                 'name': 'foo',
                 'nullable': True,
-                'type': String,
+                'type': BigInteger,
             },
         ])
 
