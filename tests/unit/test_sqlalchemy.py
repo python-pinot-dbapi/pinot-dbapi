@@ -139,6 +139,21 @@ class PinotCompilerTest(PinotTestCase):
             'SELECT "order" AS ord \nFROM some_table',
         )
 
+    def test_can_select_table_directly(self):
+        metadata = MetaData()
+        table = Table(
+            'some_table', metadata,
+            Column('some_column', Integer)
+        )
+        statement = select(table.c.some_column)
+
+        compiler = self.dialect.statement_compiler(self.dialect, statement)
+
+        self.assertEqual(
+            str(compiler),
+            'SELECT some_column \nFROM some_table',
+        )
+
 
 class PinotTypeCompilerTest(PinotTestCase):
     def setUp(self) -> None:

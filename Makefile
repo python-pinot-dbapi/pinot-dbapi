@@ -8,7 +8,7 @@ test-integration:
 	poetry run pytest tests/integration/
 
 test-unit:
-	poetry run pytest tests/unit/
+	poetry run pytest -s tests/unit/
 
 lint:
 	poetry run flake8 pinotdb
