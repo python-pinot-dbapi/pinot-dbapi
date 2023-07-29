@@ -164,6 +164,31 @@ class PinotDialectTest(PinotTestCase):
         ])
 
     @responses.activate
+    def test_gets_columns_with_different_default_values(self):
+        table_name = 'some-table'
+        url = f'{self.dialect._controller}/tables/{table_name}/schema'
+        responses.get(url, json={
+            'tables': [table_name],
+            'timeFieldSpec': {},
+            'dimensionFieldSpecs': [{
+                'name': 'foo',
+                'dataType': 'STRING',
+                'defaultNullValue': 123,
+            }],
+        })
+
+        columns = self.dialect.get_columns('conn', table_name)
+
+        self.assertEqual(columns, [
+            {
+                'default': '123',
+                'name': 'foo',
+                'nullable': True,
+                'type': String,
+            },
+        ])
+
+    @responses.activate
     def test_gets_columns_with_time_spec(self):
         table_name = 'some-table'
         url = f'{self.dialect._controller}/tables/{table_name}/schema'
