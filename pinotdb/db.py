@@ -294,8 +294,6 @@ class Cursor:
         use_multistage_engine=False,
         **kwargs
     ):
-        if path == "query":
-            path = "query/sql"
         self.url = parse.urlunparse(
             (scheme, f"{host}:{port}", path, None, None, None))
         self.session = session
