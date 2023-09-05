@@ -46,10 +46,29 @@ def run_pinot_quickstart_multi_stage_sqlalchemy_example() -> None:
         for row in result:
             print(row)
 
+def run_pinot_quickstart_multi_stage_sqlalchemy_example_2() -> None:
+
+    engine = create_engine(
+        "pinot://localhost:8000/query?controller=http://localhost:9000/",
+        connect_args={"useMultistageEngine": "true"}
+    )  # uses HTTP by default :(
+    # engine = create_engine('pinot+http://localhost:8000/query/sql?controller=http://localhost:9000/')
+    # engine = create_engine('pinot+https://localhost:8000/query/sql?controller=http://localhost:9000/')
+    from sqlalchemy import text
+
+    with engine.connect() as connection:
+        result = connection.execute(text("SELECT playerID, runs, yearID FROM baseballStats WHERE runs > 160 LIMIT 10"))
+        for row in result:
+            print(row)
+        result = connection.execute(text("SELECT a.playerID, a.runs, a.yearID, b.runs, b.yearID FROM baseballStats AS a JOIN baseballStats AS b ON a.playerID = b.playerID WHERE a.runs > 160 AND b.runs < 2 LIMIT 10"))
+        for row in result:
+            print(row)
+
 
 def run_main():
     run_pinot_quickstart_multi_stage_example()
     run_pinot_quickstart_multi_stage_sqlalchemy_example()
+    run_pinot_quickstart_multi_stage_sqlalchemy_example_2()
 
 
 if __name__ == "__main__":
