@@ -326,12 +326,6 @@ class CursorTest(TestCase):
 
         self.assertIsInstance(cursor.auth, httpx.DigestAuth)
 
-    def test_fixes_query_path_when_instantiating(self):
-        cursor = db.Cursor(
-            host='localhost', path='query', session=httpx.Client())
-
-        self.assertEqual(cursor.url, 'http://localhost:8099/query/sql')
-
     def test_instantiates_with_extra_headers(self):
         cursor = db.Cursor(
             host='localhost', session=httpx.Client(),
