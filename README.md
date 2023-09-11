@@ -11,8 +11,8 @@ Current supported Pinot version: 0.9.3.
 ```python
 from pinotdb import connect
 
-# this assumes 9000 is the controller port
-conn = connect(host='localhost', port=9000, path='/sql', scheme='http')
+# this assumes 8000 is the broker port
+conn = connect(host='localhost', port=8000, path='/query/sql', scheme='http')
 curs = conn.cursor()
 curs.execute("""
     SELECT place,
@@ -30,8 +30,8 @@ For HTTPS:
 ```python
 from pinotdb import connect
 
-# this assumes that 443 is the controller port
-conn = connect(host='localhost', port=443, path='/sql', scheme='https')
+# this assumes that 443 is the broker secure https port
+conn = connect(host='localhost', port=443, path='/query/sql', scheme='https')
 curs = conn.cursor()
 curs.execute("""
     SELECT place,
