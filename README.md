@@ -100,12 +100,20 @@ from sqlalchemy.engine import create_engine
 from sqlalchemy.schema import *
 
 engine = create_engine('pinot://localhost:8099/query/sql?controller=http://localhost:9000/')  # uses HTTP by default :(
+# or, using explicit HTTP:
 # engine = create_engine('pinot+http://localhost:8099/query/sql?controller=http://localhost:9000/')
+# or, using explicit HTTPS:
 # engine = create_engine('pinot+https://localhost:8099/query/sql?controller=https://localhost:9000/')
+# or, provide extra argument to connect with multi-stage engine enabled:
+# engine = create_engine(
+#     "pinot://localhost:8000/query/sql?controller=http://localhost:9000/",
+#     connect_args={"useMultistageEngine": "true"}
+# )
 
 places = Table('places', MetaData(bind=engine), autoload=True)
 print(select([func.count('*')], from_obj=places).scalar())
 ```
+
 
 ## Examples with Pinot Quickstart
 
