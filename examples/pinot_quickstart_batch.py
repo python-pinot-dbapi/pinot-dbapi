@@ -32,7 +32,7 @@ def run_pinot_quickstart_batch_example() -> None:
 
     sql = "SELECT playerName, sum(runs) FROM baseballStats WHERE yearID>=2000 GROUP BY playerName LIMIT 5"
     print(f"\nSending SQL to Pinot: {sql}")
-    curs.execute(sql, timeout=10.0)
+    curs.execute(sql)
     for row in curs:
         print(row)
 

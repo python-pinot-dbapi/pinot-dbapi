@@ -11,6 +11,8 @@ from pinotdb import exceptions
 from pinotdb import keywords
 import logging
 
+import json
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,15 +45,13 @@ class PinotCompiler(compiler.SQLCompiler):
         render_label_as_label=None,
         **kw,
     ):
-        if kw:
-            render_label_as_label = kw.pop("render_label_as_label", None)
-        render_label_as_label = None
         return super().visit_label(
             label,
             add_to_result_map,
             within_label_clause,
             within_columns_clause,
-            render_label_as_label,
+            # Note: We force not to render labels in non-select clauses
+            render_label_as_label=None,
             **kw,
         )
 
@@ -102,7 +102,8 @@ class PinotTypeCompiler(compiler.GenericTypeCompiler):
 
 class PinotIdentifierPareparer(compiler.IdentifierPreparer):
     reserved_words = set(
-        [e.lower() for e in (keywords.CALCITE_KEYWORDS ^ keywords.SUPERSET_KEYWORDS)]
+        [e.lower()
+         for e in (keywords.CALCITE_KEYWORDS ^ keywords.SUPERSET_KEYWORDS)]
     )
 
     def __init__(
@@ -127,6 +128,7 @@ class PinotDialect(default.DefaultDialect):
     name = "pinot"
     scheme = "http"
     driver = "rest"
+    engine_type = "v1"
     preparer = PinotIdentifierPareparer
     statement_compiler = PinotCompiler
     type_compiler = PinotTypeCompiler
@@ -148,6 +150,8 @@ class PinotDialect(default.DefaultDialect):
         super().__init__(*args, **kwargs)
 
         self._controller = None
+        self._username = None
+        self._password = None
         self._debug = False
         self._verify_ssl = True
         self.update_from_kwargs(kwargs)
@@ -192,6 +196,8 @@ class PinotDialect(default.DefaultDialect):
             "password": url.password,
             "verify_ssl": self._verify_ssl or True,
         }
+        if self.engine_type == "multi_stage":
+            kwargs.update({"use_multistage_engine": True})
         if url.query:
             kwargs.update(url.query)
 
@@ -207,7 +213,8 @@ class PinotDialect(default.DefaultDialect):
             raise exceptions.DatabaseError(
                 "Got invalid json response from " f"{self._controller}:{path}: {r.text}"
             ) from e
-        if self._debug:
+        # Skipping coverage of log lines - because covering them adds no value.
+        if self._debug:  # pragma: no cover
             logger.info(
                 "metadata get on %s:%s returned %s", self._controller, path, result
             )
@@ -289,12 +296,38 @@ class PinotDialect(default.DefaultDialect):
 
     def _check_unicode_description(self, connection):
         return True
+    
+    # Fix for SQL Alchemy error
+    def _json_deserializer(self, content: any):
+        """
+        This function fixes the following error from SQLAlchemy: 
+
+        Traceback (most recent call last):
+        File "...sqlalchemy/sql/sqltypes.py", line 2714, in result_processor
+        json_deserializer = dialect._json_deserializer or json.loads
+        AttributeError: 'PinotDialect' object has no attribute '_json_deserializer'
+
+        The expected behavior is to simply return the passed object (called `content`) because the json.loads() method should already have been called in `db.py`. However, if the content is still one of the supported types for json.loads to deserialize, it will try to do so.
+        """
+        if isinstance(content, str) or isinstance(content, bytearray) or isinstance(content, bytes):
+            return json.loads(content)
+        else:
+            return content
 
 
 PinotHTTPDialect = PinotDialect
 
 
 class PinotHTTPSDialect(PinotDialect):
+    scheme = "https"
+
+
+class PinotMultiStageDialect(PinotDialect):
+    engine_type = "multi_stage"
+
+
+class PinotHTTPSMultiStageDialect(PinotDialect):
+    engine_type = "multi_stage"
     scheme = "https"
 
 
@@ -305,14 +338,16 @@ def get_default(pinot_column_default):
         return str(pinot_column_default)
 
 
-## Ref to supported Pinot data types: https://docs.pinot.apache.org/basics/components/schema#data-types
+# Ref to supported Pinot data types:
+# https://docs.pinot.apache.org/basics/components/schema#data-types
 def get_type(data_type, field_size):
     type_map = {
         "int": types.BigInteger,
         "long": types.BigInteger,
         "float": types.Float,
         "double": types.Numeric,
-        # BOOLEAN, is added after release 0.7.1. In release 0.7.1 and older releases, BOOLEAN is equivalent to STRING.
+        # BOOLEAN, is added after release 0.7.1.
+        # In release 0.7.1 and older releases, BOOLEAN is equivalent to STRING.
         "boolean": types.Boolean,
         "timestamp": types.TIMESTAMP,
         "string": types.String,
