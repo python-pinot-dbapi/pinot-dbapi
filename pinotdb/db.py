@@ -330,7 +330,7 @@ class Cursor:
         extra_headers = {}
         if extra_request_headers:
             for header in extra_request_headers.split(","):
-                k, v = header.split("=")
+                k, v = header.split("=", 1)
                 extra_headers[k] = v
 
         self.session.headers.update(extra_headers)
