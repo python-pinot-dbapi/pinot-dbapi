@@ -147,7 +147,6 @@ class Connection:
         if self.session:
             self.verify_session()
             self.is_session_external = True
-        self.timeout = kwargs.get('timeout', 'None')
 
     def verify_session(self):
         if self.session:
