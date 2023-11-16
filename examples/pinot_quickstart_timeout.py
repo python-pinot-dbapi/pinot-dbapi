@@ -9,33 +9,33 @@ import httpx
 
 def run_pinot_quickstart_timeout_example() -> None:
 
-    #Test 1 : Try without timeout and wait for more than 5 seconds. The query should execute without exceptions.
+    #Test 1 : Try without timeout. The request should succeed.
 
     conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http")
     curs = conn.cursor()
     sql = "SELECT * FROM airlineStats LIMIT 5"
     print(f"Sending SQL to Pinot: {sql}")
-    time.sleep(5.001)
     curs.execute(sql)
+    conn.close()
 
-    #Test 2 : Try with timeout=None and wait for more than 5 seconds. The query should execute without exceptions.
+    #Test 2 : Try with timeout=None. The request should succeed.
 
     conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http", timeout=None)
     curs = conn.cursor()
-    sql = "SELECT * FROM airlineStats LIMIT 5"
+    sql = "SELECT count(*) FROM airlineStats LIMIT 5"
     print(f"Sending SQL to Pinot: {sql}")
-    time.sleep(5.001)
     curs.execute(sql)
+    conn.close()
 
-    #Test 3 : Try with a timeout less than the sleep time. The query should raise an exception.
+    #Test 3 : Try with a really small timeout. The query should raise an exception.
 
     conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http", timeout=0.001)
     curs = conn.cursor()
-    sql = "SELECT * FROM airlineStats LIMIT 5"
+    sql = "SELECT AirlineID, sum(Cancelled) FROM airlineStats WHERE Year > 2010 GROUP BY AirlineID LIMIT 5"
     print(f"Sending SQL to Pinot: {sql}")
     with pytest.raises(httpx.ReadTimeout):
-        time.sleep(0.002)
         curs.execute(sql)
+    conn.close()
 
 
 def run_main():
