@@ -331,10 +331,11 @@ class CursorTest(TestCase):
     def test_instantiates_with_extra_headers(self):
         cursor = db.Cursor(
             host='localhost', session=httpx.Client(),
-            extra_request_headers='foo=bar,baz=yo')
+            extra_request_headers='foo=bar,baz=yo,Authorization=Bearer foo=')
 
         self.assertEqual(cursor.session.headers['foo'], 'bar')
         self.assertEqual(cursor.session.headers['baz'], 'yo')
+        self.assertEqual(cursor.session.headers['Authorization'], 'Bearer foo=')
 
     def test_checks_valid_exception_if_not_containing_error_code(self):
         cursor = db.Cursor(host='localhost', session=httpx.Client())
