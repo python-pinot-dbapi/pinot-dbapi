@@ -311,6 +311,7 @@ class Cursor:
         self.schema = None
         self.rowcount = -1
         self._results = None
+        self.timeUsedMs = -1
         self._debug = debug
         self._preserve_types = preserve_types
         self._use_multistage_engine = use_multistage_engine
@@ -405,6 +406,7 @@ class Cursor:
 
         num_servers_responded = payload.get("numServersResponded", -1)
         num_servers_queried = payload.get("numServersQueried", -1)
+        self.timeUsedMs = payload.get("timeUsedMs", -1)
 
         self.check_sufficient_responded(
             input_query, num_servers_queried, num_servers_responded
