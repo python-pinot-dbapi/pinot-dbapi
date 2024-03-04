@@ -11,7 +11,8 @@ from sqlalchemy.orm import sessionmaker
 ##    -d apachepinot/pinot:latest QuickStart -type hybrid
 
 def run_pinot_quickstart_hybrid_example() -> None:
-    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http")
+    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http",
+                   extra_request_headers="Database=default")
     curs = conn.cursor()
     sql = "SELECT * FROM airlineStats LIMIT 5"
     print(f"Sending SQL to Pinot: {sql}")
@@ -53,7 +54,7 @@ def run_pinot_quickstart_hybrid_sqlalchemy_example() -> None:
     # engine = create_engine('pinot+http://localhost:8000/query/sql?controller=http://localhost:9000/')
     # engine = create_engine('pinot+https://localhost:8000/query/sql?controller=http://localhost:9000/')
 
-    airlineStats = Table("airlineStats", MetaData(bind=engine), autoload=True)
+    airlineStats = Table("airlineStats", MetaData(bind=engine), autoload=True, schema="default")
     print(f"\nSending Count(*) SQL to Pinot")
     query=select([func.count("*")], from_obj=airlineStats)
     print(engine.execute(query).scalar())

@@ -11,7 +11,8 @@ from sqlalchemy.orm import sessionmaker
 ##    -d apachepinot/pinot:latest QuickStart -type MULTI_STAGE
 
 def run_pinot_quickstart_multi_stage_example() -> None:
-    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http", use_multistage_engine=True)
+    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http", use_multistage_engine=True,
+                   extra_request_headers="Database=default")
     curs = conn.cursor()
 
     sql = "SELECT a.playerID, a.runs, a.yearID, b.runs, b.yearID FROM baseballStats_OFFLINE AS a JOIN baseballStats_OFFLINE AS b ON a.playerID = b.playerID WHERE a.runs > 160 AND b.runs < 2 LIMIT 10"

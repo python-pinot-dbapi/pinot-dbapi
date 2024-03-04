@@ -12,7 +12,8 @@ from sqlalchemy.orm import sessionmaker
 
 
 def run_pinot_quickstart_batch_example() -> None:
-    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http")
+    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http",
+                   extra_request_headers="Database=default")
     curs = conn.cursor()
 
     tables = [
@@ -52,7 +53,7 @@ def run_pinot_quickstart_batch_sqlalchemy_example() -> None:
     # engine = create_engine('pinot+http://localhost:8000/query/sql?controller=http://localhost:9000/')
     # engine = create_engine('pinot+https://localhost:8000/query/sql?controller=http://localhost:9000/')
 
-    baseballStats = Table("baseballStats", MetaData(bind=engine), autoload=True)
+    baseballStats = Table("baseballStats", MetaData(bind=engine), autoload=True, schema="default")
     print(f"\nSending Count(*) SQL to Pinot")
     query = select([func.count("*")], from_obj=baseballStats)
     print(engine.execute(query).scalar())

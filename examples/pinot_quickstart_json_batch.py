@@ -13,7 +13,8 @@ from sqlalchemy.orm import sessionmaker
 
 
 def run_quickstart_json_batch_example() -> None:
-    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http")
+    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http",
+                   extra_request_headers="Database=default")
     curs = conn.cursor()
     sql = "SELECT * FROM githubEvents LIMIT 5"
     print(f"Sending SQL to Pinot: {sql}")
@@ -43,7 +44,7 @@ def run_quickstart_json_batch_sqlalchemy_example() -> None:
     # engine = create_engine('pinot+http://localhost:8000/query/sql?controller=http://localhost:9000/')
     # engine = create_engine('pinot+https://localhost:8000/query/sql?controller=http://localhost:9000/')
 
-    githubEvents = Table("githubEvents", MetaData(bind=engine), autoload=True)
+    githubEvents = Table("githubEvents", MetaData(bind=engine), autoload=True, schema="default")
     print(f"\nSending Count(*) SQL to Pinot\nResults:")
     query=select([func.count("*")], from_obj=githubEvents)
     print(engine.execute(query).scalar())

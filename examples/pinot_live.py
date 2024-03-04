@@ -8,7 +8,8 @@ from sqlalchemy.orm import sessionmaker
 
 def run_pinot_live_example() -> None:
     # Query pinot.live with pinotdb connect
-    conn = connect(host="pinot-broker.pinot.live", port=443, path="/query/sql", scheme="https")
+    conn = connect(host="pinot-broker.pinot.live", port=443, path="/query/sql", scheme="https",
+                   extra_request_headers="Database=default")
     curs = conn.cursor()
     sql = "SELECT * FROM airlineStats LIMIT 5"
     print(f"Sending SQL to Pinot: {sql}")
@@ -21,7 +22,7 @@ def run_pinot_live_example() -> None:
         "pinot+https://pinot-broker.pinot.live:443/query/sql?controller=https://pinot-controller.pinot.live/"
     )  # uses HTTP by default :(
 
-    airlineStats = Table("airlineStats", MetaData(bind=engine), autoload=True)
+    airlineStats = Table("airlineStats", MetaData(bind=engine), autoload=True, schema="default")
     print(f"\nSending Count(*) SQL to Pinot")
     query=select([func.count("*")], from_obj=airlineStats)
     print(engine.execute(query).scalar())

@@ -132,6 +132,7 @@ class PinotDialect(default.DefaultDialect):
     preparer = PinotIdentifierPareparer
     statement_compiler = PinotCompiler
     type_compiler = PinotTypeCompiler
+    supports_schemas = True
     supports_statement_cache = False
     supports_alter = False
     supports_pk_autoincrement = False
@@ -204,9 +205,9 @@ class PinotDialect(default.DefaultDialect):
         kwargs = self.update_from_kwargs(kwargs)
         return ([], kwargs)
 
-    def get_metadata_from_controller(self, path):
+    def get_metadata_from_controller(self, path, database=None):
         url = parse.urljoin(self._controller, path)
-        r = requests.get(url, headers={"Accept": "application/json"}, verify=self._verify_ssl, auth= HTTPBasicAuth(self._username, self._password))
+        r = requests.get(url, headers={"Accept": "application/json", "Database": database}, verify=self._verify_ssl, auth= HTTPBasicAuth(self._username, self._password))
         try:
             result = r.json()
         except ValueError as e:
@@ -221,13 +222,13 @@ class PinotDialect(default.DefaultDialect):
         return result
 
     def get_schema_names(self, connection, **kwargs):
-        return ["default"]
+        return self.get_metadata_from_controller("/databases")
 
     def has_table(self, connection, table_name, schema=None):
         return table_name in self.get_table_names(connection, schema)
 
     def get_table_names(self, connection, schema=None, **kwargs):
-        return self.get_metadata_from_controller("/tables")["tables"]
+        return self.get_metadata_from_controller("/tables", schema)["tables"]
 
     def get_view_names(self, connection, schema=None, **kwargs):
         return []
@@ -236,7 +237,7 @@ class PinotDialect(default.DefaultDialect):
         return {}
 
     def get_columns(self, connection, table_name, schema=None, **kwargs):
-        payload = self.get_metadata_from_controller(f"/tables/{table_name}/schema")
+        payload = self.get_metadata_from_controller(f"/tables/{table_name}/schema", schema)
 
         logger.info(
             "Getting columns for %s from %s: %s", table_name, self._controller, payload
