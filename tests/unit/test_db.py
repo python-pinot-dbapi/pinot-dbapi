@@ -752,3 +752,4 @@ class EscapeTest(TestCase):
 
     def test_escapes_percent(self):
         self.assertEqual(db.escape_operation("some query with %"), "some query with %%")
+        self.assertEqual(db.escape_operation("some query with %(var)s"), "some query with %(var)s")
