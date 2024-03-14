@@ -615,4 +615,4 @@ def escape_parameter(value: Any) -> Any:
 
 
 def escape_operation(value: str) -> str:
-    return value.replace('%', '%%')
+    return value.replace('%', '%%').replace('%(', '(')
