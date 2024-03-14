@@ -597,11 +597,12 @@ class AsyncCursor(Cursor):
 
 def apply_parameters(operation, parameters):
     escaped_parameters = {
-        key: escape(value) for key, value in parameters.items()}
-    return operation % escaped_parameters
+        key: escape_parameter(value) for key, value in parameters.items()}
+    escaped_operation = escape_operation(operation)
+    return escaped_operation % escaped_parameters
 
 
-def escape(value: Any) -> Any:
+def escape_parameter(value: Any) -> Any:
     if value == "*":
         return value
     elif isinstance(value, str):
@@ -609,5 +610,9 @@ def escape(value: Any) -> Any:
     elif isinstance(value, bool):
         return "TRUE" if value else "FALSE"
     elif isinstance(value, (list, tuple)):
-        return ", ".join(str(escape(element)) for element in value)
+        return ", ".join(str(escape_parameter(element)) for element in value)
     return value
+
+
+def escape_operation(value: str) -> str:
+    return value.replace('%%', '%').replace('%', '%%').replace('%(', '(')

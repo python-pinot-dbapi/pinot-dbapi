@@ -729,23 +729,27 @@ class AsyncCursorTest(IsolatedAsyncioTestCase):
 
 class EscapeTest(TestCase):
     def test_escapes_asterisk(self):
-        self.assertEqual(db.escape('*'), '*')
+        self.assertEqual(db.escape_parameter('*'), '*')
 
     def test_escapes_string(self):
-        self.assertEqual(db.escape("what 'foo' means"), "'what ''foo'' means'")
+        self.assertEqual(db.escape_parameter("what 'foo' means"), "'what ''foo'' means'")
 
     def test_escapes_int(self):
-        self.assertEqual(db.escape(1), 1)
+        self.assertEqual(db.escape_parameter(1), 1)
 
     def test_escapes_float(self):
-        self.assertEqual(db.escape(1.0), 1.0)
+        self.assertEqual(db.escape_parameter(1.0), 1.0)
 
     def test_escapes_bool(self):
-        self.assertEqual(db.escape(True), 'TRUE')
-        self.assertEqual(db.escape(False), 'FALSE')
+        self.assertEqual(db.escape_parameter(True), 'TRUE')
+        self.assertEqual(db.escape_parameter(False), 'FALSE')
 
     def test_escapes_list(self):
-        self.assertEqual(db.escape([1, 'two']), "1, 'two'")
+        self.assertEqual(db.escape_parameter([1, 'two']), "1, 'two'")
 
     def test_bypasses_escaping_unknown_types(self):
-        self.assertEqual(db.escape({1, 2}), {1, 2})
+        self.assertEqual(db.escape_parameter({1, 2}), {1, 2})
+
+    def test_escapes_percent(self):
+        self.assertEqual(db.escape_operation("some query with %"), "some query with %%")
+        self.assertEqual(db.escape_operation("some query with %(var)s"), "some query with %(var)s")
