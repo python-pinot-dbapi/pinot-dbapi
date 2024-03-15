@@ -123,6 +123,11 @@ class PinotIdentifierPareparer(compiler.IdentifierPreparer):
         )
 
 
+def extract_table_name(fqn):
+    split = fqn.split(".", 2)
+    return fqn if len(split) == 1 else split[1]
+
+
 class PinotDialect(default.DefaultDialect):
 
     name = "pinot"
@@ -222,13 +227,17 @@ class PinotDialect(default.DefaultDialect):
         return result
 
     def get_schema_names(self, connection, **kwargs):
-        return self.get_metadata_from_controller("/databases")
+        schema_names = self.get_metadata_from_controller("/databases")
+        if isinstance(schema_names, (list, tuple)):
+            return schema_names
+        else:
+            return ['default']
 
     def has_table(self, connection, table_name, schema=None):
         return table_name in self.get_table_names(connection, schema)
 
     def get_table_names(self, connection, schema=None, **kwargs):
-        return self.get_metadata_from_controller("/tables", schema)["tables"]
+        return list(map(extract_table_name, self.get_metadata_from_controller("/tables", schema)["tables"]))
 
     def get_view_names(self, connection, schema=None, **kwargs):
         return []
