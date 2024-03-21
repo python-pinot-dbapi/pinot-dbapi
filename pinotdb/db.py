@@ -335,6 +335,7 @@ class Cursor:
                 k, v = header.split("=", 1)
                 extra_headers[k] = v
 
+        extra_headers['database'] = kwargs['database']
         self.session.headers.update(extra_headers)
 
     @check_closed
@@ -382,6 +383,12 @@ class Cursor:
                 queryOptions += ";useMultistageEngine=true"
             else:
                 queryOptions = "useMultistageEngine=true"
+        database = self.session.headers['database']
+        if database:
+            if queryOptions:
+                queryOptions += f";database={database}"
+            else:
+                queryOptions = f"database={database}"
         if queryOptions:
             return {"sql": query, "queryOptions": queryOptions}
         else:
