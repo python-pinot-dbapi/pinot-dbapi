@@ -230,13 +230,20 @@ class PinotDialect(default.DefaultDialect):
         return result
 
     def get_schema_names(self, connection, **kwargs):
-        return [self._database]
+        if self._database:
+            return [self._database]
+        else:
+            return ['default']
 
     def has_table(self, connection, table_name, schema=None):
         return table_name in self.get_table_names(connection, schema)
 
     def get_table_names(self, connection, schema=None, **kwargs):
-        return list(map(extract_table_name, self.get_metadata_from_controller("/tables")["tables"]))
+        resp = self.get_metadata_from_controller("/tables")
+        if 'tables' in resp:
+            return list(map(extract_table_name, resp["tables"]))
+        else:
+            return []
 
     def get_view_names(self, connection, schema=None, **kwargs):
         return []

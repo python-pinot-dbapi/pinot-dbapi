@@ -162,7 +162,7 @@ class Connection:
             except exceptions.Error:
                 pass  # already closed
         # if we're managing the httpx session, attempt to close it
-        if not self.is_session_external:
+        if not self.is_session_external and self.session:
             self.session.close()
 
     @check_closed
@@ -334,8 +334,8 @@ class Cursor:
             for header in extra_request_headers.split(","):
                 k, v = header.split("=", 1)
                 extra_headers[k] = v
-
-        extra_headers['database'] = kwargs['database']
+        if 'database' in kwargs:
+            extra_headers['database'] = kwargs['database']
         self.session.headers.update(extra_headers)
 
     @check_closed
@@ -383,12 +383,6 @@ class Cursor:
                 queryOptions += ";useMultistageEngine=true"
             else:
                 queryOptions = "useMultistageEngine=true"
-        database = self.session.headers['database']
-        if database:
-            if queryOptions:
-                queryOptions += f";database={database}"
-            else:
-                queryOptions = f"database={database}"
         if queryOptions:
             return {"sql": query, "queryOptions": queryOptions}
         else:
