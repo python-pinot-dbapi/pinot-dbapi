@@ -11,7 +11,8 @@ def run_pinot_quickstart_timeout_example() -> None:
 
     #Test 1 : Try without timeout. The request should succeed.
 
-    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http")
+    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http",
+                   extra_request_headers="Database=default")
     curs = conn.cursor()
     sql = "SELECT * FROM airlineStats LIMIT 5"
     print(f"Sending SQL to Pinot: {sql}")
@@ -20,7 +21,8 @@ def run_pinot_quickstart_timeout_example() -> None:
 
     #Test 2 : Try with timeout=None. The request should succeed.
 
-    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http", timeout=None)
+    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http", timeout=None,
+                   extra_request_headers="Database=default")
     curs = conn.cursor()
     sql = "SELECT count(*) FROM airlineStats LIMIT 5"
     print(f"Sending SQL to Pinot: {sql}")
@@ -29,7 +31,8 @@ def run_pinot_quickstart_timeout_example() -> None:
 
     #Test 3 : Try with a really small timeout. The query should raise an exception.
 
-    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http", timeout=0.001)
+    conn = connect(host="localhost", port=8000, path="/query/sql", scheme="http", timeout=0.001,
+                   extra_request_headers="Database=default")
     curs = conn.cursor()
     sql = "SELECT AirlineID, sum(Cancelled) FROM airlineStats WHERE Year > 2010 GROUP BY AirlineID LIMIT 5"
     print(f"Sending SQL to Pinot: {sql}")

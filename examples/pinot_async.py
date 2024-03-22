@@ -7,7 +7,8 @@ from pinotdb import connect_async
 
 async def run_pinot_async_example():
     async with connect_async(host='localhost', port=8000, path='/query/sql',
-                             scheme='http', verify_ssl=False, timeout=10.0) as conn:
+                             scheme='http', verify_ssl=False, timeout=10.0,
+                             extra_request_headers="Database=default") as conn:
         curs = await conn.execute("""
             SELECT count(*)
               FROM baseballStats
@@ -20,7 +21,7 @@ async def run_pinot_async_example():
     session = httpx.AsyncClient(verify=False)
     conn = connect_async(
         host='localhost', port=8000, path='/query/sql', scheme='http',
-        verify_ssl=False, session=session)
+        verify_ssl=False, session=session, extra_request_headers="Database=default")
 
     # launch 10 requests in parallel spanning a limit/offset range
     reqs = []
