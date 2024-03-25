@@ -211,7 +211,8 @@ class AsyncConnection(Connection):
         """Return a new Cursor Object using the connection."""
         if not self.session or self.session.is_closed:
             self.session = httpx.AsyncClient(
-                verify=self._kwargs.get('verify_ssl'))
+                verify=self._kwargs.get('verify_ssl'),
+                timeout=self._kwargs.get('timeout'))
 
         self._kwargs['session'] = self.session
         cursor = AsyncCursor(*self._args, **self._kwargs)
