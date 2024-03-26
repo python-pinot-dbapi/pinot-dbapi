@@ -128,6 +128,12 @@ def extract_table_name(fqn):
     return fqn if len(split) == 1 else split[1]
 
 
+def mask_value(key, value, sensitive_keys):
+    if key in sensitive_keys:
+        return 'xxxxxx'
+    return value
+
+
 class PinotDialect(default.DefaultDialect):
 
     name = "pinot"
@@ -180,7 +186,7 @@ class PinotDialect(default.DefaultDialect):
         kwargs["verify_ssl"] = self._verify_ssl = (str(kwargs.get("verify_ssl", "true")).lower() in ['true'])
         logger.info(
             "Updated pinot dialect args from %s: %s and %s",
-            kwargs,
+            dict(map(lambda kv: (kv[0], mask_value(kv[0], kv[1], ['password'])), kwargs.items())),
             self._controller,
             self._debug,
         )
