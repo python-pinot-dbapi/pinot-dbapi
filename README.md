@@ -57,6 +57,29 @@ them in as part of the `execute` method. For example:
 curs.execute("select * from airlineStats air limit 10", queryOptions="useMultistageEngine=true")
 ```
 
+#### Pass the Pinot database context
+
+> [!IMPORTANT]
+> This feature is only available from [5.1.5](https://pypi.org/project/pinotdb/5.1.5/)
+
+```python
+from pinotdb import connect
+
+# this assumes that 443 is the broker secure https port
+conn = connect(host='localhost', port=8000, path='/query/sql', scheme='http', database='dbName')
+curs = conn.cursor()
+curs.execute("""
+    SELECT col1 from table1 LIMIT 10
+""")
+for row in curs:
+    print(row)
+```
+where,
+- `dbName` : the database context that needs to be passed
+- `table1` : table under the `dbName` database
+
+If `database` is not specified the connection will use the `default` database context.
+
 ### Using SQLAlchemy:
 
 Since db engine requires more information beyond Pinot Broker, you need to provide pinot controller for table and schema information.
@@ -113,6 +136,21 @@ engine = create_engine('pinot://localhost:8099/query/sql?controller=http://local
 places = Table('places', MetaData(bind=engine), autoload=True)
 print(select([func.count('*')], from_obj=places).scalar())
 ```
+
+#### Pass the Pinot database context
+
+> [!IMPORTANT]
+> This feature is only available from [5.1.5](https://pypi.org/project/pinotdb/5.1.5/)
+
+Each connection should only query one Pinot Database, hence we provide that context through connection string itself.
+
+The db engine connection string is format as:
+
+```
+pinot+http://pinot-broker:8099/query/sql?controller=http://pinot-controller:9000/&database=dbName
+```
+where `dbName` is the database context that needs to be passed.
+If not specified the connection will use the `default` database context while querying.
 
 
 ## Examples with Pinot Quickstart
