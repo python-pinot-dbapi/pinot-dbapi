@@ -21,9 +21,6 @@ class PinotCompiler(compiler.SQLCompiler):
         return super().visit_select(select, **kwargs)
 
     def visit_column(self, column, result_map=None, **kwargs):
-        # Pinot does not support table aliases
-        if column.table is not None:
-            column.table.named_with_column = False
         result_map = result_map or kwargs.pop("add_to_result_map", None)
         # This is a hack to modify the original column, but how do I clone it ?
         column.is_literal = True

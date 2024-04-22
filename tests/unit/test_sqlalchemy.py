@@ -344,7 +344,7 @@ class PinotCompilerTest(PinotTestCase):
 
         self.assertEqual(
             str(compiler),
-            'SELECT some_column \nFROM some_table',
+            'SELECT some_table.some_column \nFROM some_table',
         )
 
 
