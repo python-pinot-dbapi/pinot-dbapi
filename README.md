@@ -137,6 +137,15 @@ places = Table('places', MetaData(bind=engine), autoload=True)
 print(select([func.count('*')], from_obj=places).scalar())
 ```
 
+To configure query parameters (such as `timeoutMs=10000`) at the engine level
+you may pass them while creating the engine. For example:
+
+```python
+engine = create_engine(
+        "pinot://localhost:8000/query/sql?controller=http://localhost:9000/",
+        connect_args={"query_options": "useMultistageEngine=true;timeoutMs=10000"})
+```
+
 #### Pass the Pinot database context
 
 > [!IMPORTANT]

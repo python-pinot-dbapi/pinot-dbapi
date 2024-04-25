@@ -141,6 +141,7 @@ class Connection:
         self._kwargs = kwargs
         self.closed = False
         self.use_multistage_engine = kwargs.get('use_multistage_engine', False)
+        self.query_options = kwargs.get('query_options', None)
         self.cursors = []
         self.session = kwargs.get('session')
         self.is_session_external = False
@@ -191,7 +192,7 @@ class Connection:
     @check_closed
     def execute(self, operation, parameters=None):
         cursor = self.cursor()
-        return cursor.execute(operation, parameters)
+        return cursor.execute(operation, parameters, self.query_options)
 
     def __enter__(self):
         return self.cursor()
@@ -239,7 +240,7 @@ class AsyncConnection(Connection):
     @check_closed
     async def execute(self, operation, parameters=None):
         cursor = self.cursor()
-        return await cursor.execute(operation, parameters)
+        return await cursor.execute(operation, parameters, self.query_options)
 
     async def __aenter__(self):
         return self.cursor()
@@ -294,6 +295,7 @@ class Cursor:
         #  interface (e.g. new minor version).
         session=None,
         use_multistage_engine=False,
+        query_options=None,
         **kwargs
     ):
         self.url = parse.urlunparse(
@@ -316,6 +318,7 @@ class Cursor:
         self._debug = debug
         self._preserve_types = preserve_types
         self._use_multistage_engine = use_multistage_engine
+        self._query_options = query_options
         self.acceptable_respond_fraction = acceptable_respond_fraction
         if ignore_exception_error_codes:
             self._ignore_exception_error_codes = set(
@@ -477,6 +480,11 @@ class Cursor:
     #  to follow the same camel casing convention, but rather should stick
     #  to PEP-8 instead.
     def execute(self, operation, parameters=None, queryOptions=None, **kwargs):
+        if not queryOptions:
+            queryOptions = ""
+        if self._query_options:
+            queryOptions = queryOptions + ";" + self._query_options
+
         query = self.finalize_query_payload(
             operation, parameters, queryOptions)
 
@@ -573,6 +581,11 @@ class AsyncCursor(Cursor):
     async def execute(
             self, operation, parameters=None, queryOptions=None, **kwargs
     ):
+        if not queryOptions:
+            queryOptions = ""
+        if self._query_options:
+            queryOptions = queryOptions + ";" + self._query_options
+
         query = self.finalize_query_payload(
             operation, parameters, queryOptions)
 
