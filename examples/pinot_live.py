@@ -19,7 +19,8 @@ def run_pinot_live_example() -> None:
 
     # Query pinot.live with sqlalchemy
     engine = create_engine(
-        "pinot+https://pinot-broker.pinot.live:443/query/sql?controller=https://pinot-controller.pinot.live/"
+        "pinot+https://pinot-broker.pinot.live:443/query/sql?controller=https://pinot-controller.pinot.live/",
+        connect_args={"query_options": "timeoutMs=10000"}
     )  # uses HTTP by default :(
 
     airlineStats = Table("airlineStats", MetaData(bind=engine), autoload=True, schema="default")

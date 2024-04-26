@@ -49,7 +49,8 @@ def run_pinot_quickstart_hybrid_sqlalchemy_example() -> None:
     registry.register("pinot", "pinotdb.sqlalchemy", "PinotDialect")
 
     engine = create_engine(
-        "pinot://localhost:8000/query/sql?controller=http://localhost:9000/"
+        "pinot://localhost:8000/query/sql?controller=http://localhost:9000/",
+        connect_args={"query_options": "timeoutMs=10000"}
     )  # uses HTTP by default :(
     # engine = create_engine('pinot+http://localhost:8000/query/sql?controller=http://localhost:9000/')
     # engine = create_engine('pinot+https://localhost:8000/query/sql?controller=http://localhost:9000/')
