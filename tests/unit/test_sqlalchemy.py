@@ -344,7 +344,7 @@ class PinotCompilerTest(PinotTestCase):
 
         self.assertEqual(
             str(compiler),
-            'SELECT some_column \nFROM some_table',
+            'SELECT some_table.some_column \nFROM some_table',
         )
 
 
@@ -357,44 +357,44 @@ class PinotTypeCompilerTest(PinotTestCase):
         self.assertEqual(self.compiler.visit_REAL(None), 'DOUBLE')
 
     def test_compiles_numeric(self):
-        self.assertEqual(self.compiler.visit_NUMERIC(None), 'LONG')
+        self.assertEqual(self.compiler.visit_NUMERIC(None), 'NUMERIC')
 
     def test_compiles_decimal(self):
-        self.assertEqual(self.compiler.visit_DECIMAL(None), 'LONG')
+        self.assertEqual(self.compiler.visit_DECIMAL(None), 'NUMERIC')
 
     def test_compiles_integer(self):
-        self.assertEqual(self.compiler.visit_INTEGER(None), 'LONG')
+        self.assertEqual(self.compiler.visit_INTEGER(None), 'NUMERIC')
 
     def test_compiles_smallint(self):
-        self.assertEqual(self.compiler.visit_SMALLINT(None), 'LONG')
+        self.assertEqual(self.compiler.visit_SMALLINT(None), 'NUMERIC')
 
     def test_compiles_bigint(self):
-        self.assertEqual(self.compiler.visit_BIGINT(None), 'LONG')
+        self.assertEqual(self.compiler.visit_BIGINT(None), 'NUMERIC')
 
     # TODO: Check if this is correct (seems strange to have boolean as long).
     def test_compiles_boolean(self):
-        self.assertEqual(self.compiler.visit_BOOLEAN(None), 'LONG')
+        self.assertEqual(self.compiler.visit_BOOLEAN(None), 'NUMERIC')
 
     def test_compiles_timestamp(self):
-        self.assertEqual(self.compiler.visit_TIMESTAMP(None), 'LONG')
+        self.assertEqual(self.compiler.visit_TIMESTAMP(None), 'NUMERIC')
 
     def test_compiles_date(self):
-        self.assertEqual(self.compiler.visit_DATE(None), 'LONG')
+        self.assertEqual(self.compiler.visit_DATE(None), 'NUMERIC')
 
     def test_compiles_char(self):
-        self.assertEqual(self.compiler.visit_CHAR(None), 'STRING')
+        self.assertEqual(self.compiler.visit_CHAR(None), 'VARCHAR')
 
     def test_compiles_nchar(self):
-        self.assertEqual(self.compiler.visit_NCHAR(None), 'STRING')
+        self.assertEqual(self.compiler.visit_NCHAR(None), 'VARCHAR')
 
     def test_compiles_varchar(self):
-        self.assertEqual(self.compiler.visit_VARCHAR(None), 'STRING')
+        self.assertEqual(self.compiler.visit_VARCHAR(None), 'VARCHAR')
 
     def test_compiles_nvarchar(self):
-        self.assertEqual(self.compiler.visit_NVARCHAR(None), 'STRING')
+        self.assertEqual(self.compiler.visit_NVARCHAR(None), 'VARCHAR')
 
     def test_compiles_text(self):
-        self.assertEqual(self.compiler.visit_TEXT(None), 'STRING')
+        self.assertEqual(self.compiler.visit_TEXT(None), 'VARCHAR')
 
     def test_compiles_binary(self):
         self.assertEqual(self.compiler.visit_BINARY(None), 'BYTES')

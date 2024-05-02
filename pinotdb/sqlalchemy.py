@@ -21,9 +21,6 @@ class PinotCompiler(compiler.SQLCompiler):
         return super().visit_select(select, **kwargs)
 
     def visit_column(self, column, result_map=None, **kwargs):
-        # Pinot does not support table aliases
-        if column.table is not None:
-            column.table.named_with_column = False
         result_map = result_map or kwargs.pop("add_to_result_map", None)
         # This is a hack to modify the original column, but how do I clone it ?
         column.is_literal = True
@@ -61,7 +58,7 @@ class PinotTypeCompiler(compiler.GenericTypeCompiler):
         return "DOUBLE"
 
     def visit_NUMERIC(self, type_, **kwargs):
-        return "LONG"
+        return "NUMERIC"
 
     visit_DECIMAL = visit_NUMERIC
     visit_INTEGER = visit_NUMERIC
@@ -72,7 +69,7 @@ class PinotTypeCompiler(compiler.GenericTypeCompiler):
     visit_DATE = visit_NUMERIC
 
     def visit_CHAR(self, type_, **kwargs):
-        return "STRING"
+        return "VARCHAR"
 
     visit_NCHAR = visit_CHAR
     visit_VARCHAR = visit_CHAR
