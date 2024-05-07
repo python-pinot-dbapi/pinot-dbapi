@@ -2,7 +2,7 @@
 
 This module allows accessing Pinot via its [SQL API](https://docs.pinot.apache.org/users/user-guide-query/pinot-query-language).
 
-Current supported Pinot version: 0.9.3.
+Current supported Pinot version: `1.1.0`.
 
 ## Usage
 
