@@ -314,6 +314,7 @@ class Cursor:
         self.schema = None
         self.rowcount = -1
         self._results = None
+        self.raw_query_response = None
         self.timeUsedMs = -1
         self._debug = debug
         self._preserve_types = preserve_types
@@ -395,6 +396,7 @@ class Cursor:
     def normalize_query_response(self, input_query, query_response):
         try:
             payload = query_response.json()
+            self.raw_query_response = payload
         except Exception as e:
             raise exceptions.DatabaseError(
                 f"Error when querying {input_query} from {self.url}, "
