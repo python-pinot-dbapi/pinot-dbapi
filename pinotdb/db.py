@@ -397,13 +397,13 @@ class Cursor:
         try:
             payload = query_response.json()
             self.raw_query_response = {
-                "response" : payload, 
-                "response_status" : query_response.status_code
+                    "response" : payload, 
+                    "status_code" : query_response.status_code
                 }
         except Exception as e:
             self.raw_query_response = {
-                "response" : query_response.text, 
-                "response_status" : query_response.status_code
+                    "response" : query_response.text, 
+                    "status_code" : query_response.status_code
                 }
             raise exceptions.DatabaseError(
                 f"Error when querying {input_query} from {self.url}, "
