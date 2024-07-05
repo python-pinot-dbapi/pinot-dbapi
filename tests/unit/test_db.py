@@ -678,6 +678,120 @@ class CursorTest(TestCase):
         cursor.setoutputsizes(123)
 
         # All good, nothing happened
+    
+    def test_checks_raw_query_response_with_single_stage_and_status_code_200(self):
+        cursor = self.create_cursor(
+                    {
+                        'dataSchema': {
+                            'columnNames': ['age'],
+                            'columnDataTypes': ['INT'],
+                        },
+                        'rows': [[1], [2], [3]],
+                    },
+                    status_code=200,
+                    extra_payload={'numGroupsLimitReached': True},
+                    use_multistage_engine=False
+                )
+        cursor.execute('some statement')
+        raw_query_response = {
+            'response': {
+                'numServersResponded': 1,
+                'numServersQueried': 1,
+                'resultTable': {
+                    'dataSchema': {'columnNames': ['age'], 'columnDataTypes': ['INT']},
+                    'rows': [[1], [2], [3]],
+                },
+                'numGroupsLimitReached': True,
+            },
+            'status_code': 200,
+        }
+        self.assertEqual(cursor.raw_query_response, raw_query_response)
+
+    def test_checks_raw_query_response_with_multi_stage_and_status_code_200(self):
+        cursor = self.create_cursor(
+                    {
+                        'dataSchema': {
+                            'columnNames': ['age'],
+                            'columnDataTypes': ['INT'],
+                        },
+                        'rows': [[1], [2], [3]],
+                    },
+                    status_code=200,
+                    extra_payload={'numGroupsLimitReached': True},
+                    use_multistage_engine=True
+                )
+        cursor.execute('some statement')
+        raw_query_response = {
+            'response': {
+                'numServersResponded': 1,
+                'numServersQueried': 1,
+                'resultTable': {
+                    'dataSchema': {'columnNames': ['age'], 'columnDataTypes': ['INT']},
+                    'rows': [[1], [2], [3]],
+                },
+                'numGroupsLimitReached': True,
+            },
+            'status_code': 200,
+        }
+        self.assertEqual(cursor.raw_query_response, raw_query_response)
+
+    def test_checks_raw_query_response_with_single_stage_and_status_code_400(self):
+        cursor = self.create_cursor(
+            {
+                'dataSchema': {
+                    'columnNames': ['age'],
+                    'columnDataTypes': ['INT'],
+                },
+                'rows': [[1], [2], [3]],
+            },
+            status_code=400,
+            extra_payload={'exceptions': ['something', 'wrong']},
+            use_multistage_engine=False
+        )
+        with self.assertRaises(exceptions.ProgrammingError):
+            cursor.execute('some statement')
+        raw_query_response = {
+            'response': {
+                'numServersResponded': 1,
+                'numServersQueried': 1,
+                'resultTable': {
+                    'dataSchema': {'columnNames': ['age'], 'columnDataTypes': ['INT']},
+                    'rows': [[1], [2], [3]],
+                },
+                'exceptions': ['something', 'wrong'],
+            },
+            'status_code': 400,
+        }
+        self.assertEqual(cursor.raw_query_response, raw_query_response)
+
+    def test_checks_raw_query_response_with_multi_stage_and_status_code_400(self):
+        cursor = self.create_cursor(
+            {
+                'dataSchema': {
+                    'columnNames': ['age'],
+                    'columnDataTypes': ['INT'],
+                },
+                'rows': [[1], [2], [3]],
+            },
+            status_code=400,
+            extra_payload={'exceptions': ['something', 'wrong']},
+            use_multistage_engine=True
+        )
+        with self.assertRaises(exceptions.ProgrammingError):
+            cursor.execute('some statement')
+        raw_query_response = {
+            'response': {
+                'numServersResponded': 1,
+                'numServersQueried': 1,
+                'resultTable': {
+                    'dataSchema': {'columnNames': ['age'], 'columnDataTypes': ['INT']},
+                    'rows': [[1], [2], [3]],
+                },
+                'exceptions': ['something', 'wrong'],
+            },
+            'status_code': 400,
+        }
+        self.assertEqual(cursor.raw_query_response, raw_query_response)
 
 
 class AsyncCursorTest(IsolatedAsyncioTestCase):
