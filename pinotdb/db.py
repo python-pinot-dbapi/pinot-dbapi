@@ -286,6 +286,7 @@ class Cursor:
         # TODO: Remove this unused parameter when we can afford to break the
         #  interface (e.g. new minor version).
         verify_ssl=True,
+        timeout=10,
         extra_request_headers="",
         debug=False,
         preserve_types=False,

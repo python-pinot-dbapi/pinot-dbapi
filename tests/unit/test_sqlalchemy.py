@@ -56,6 +56,7 @@ class PinotDialectTest(PinotTestCase):
             'username': None,
             'password': None,
             'verify_ssl': True,
+            'timeout': 10.0,
         })
 
     def test_creates_connection_args_without_query(self):
@@ -73,6 +74,7 @@ class PinotDialectTest(PinotTestCase):
             'username': None,
             'password': None,
             'verify_ssl': True,
+            'timeout': 10.0,
         })
 
     def test_can_instantiate_with_server(self):
@@ -282,6 +284,7 @@ class PinotMultiStageDialectTest(PinotTestCase):
             'username': None,
             'password': None,
             'verify_ssl': True,
+            'timeout': 10.0,
             'use_multistage_engine': True,
         })
 
