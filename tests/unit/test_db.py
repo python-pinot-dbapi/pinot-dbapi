@@ -41,6 +41,17 @@ class ConnectionTest(TestCase):
         connection.verify_session()
         # All good, no errors.
 
+    def test_verifies_timeout_kwargs(self):
+        connection = db.Connection(host='localhost', timeout=100)
+        cursor = connection.cursor()
+
+        self.assertDictEqual(
+            connection.session.timeout.as_dict(), 
+            {'connect': 100.0, 'read': 100.0, 'write': 100.0, 'pool': 100.0}
+            )
+        
+        
+
     def test_fails_to_verify_session_if_unexpected_type(self):
         connection = db.Connection()
         connection.session = object()
