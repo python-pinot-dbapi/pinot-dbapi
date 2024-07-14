@@ -182,7 +182,7 @@ class PinotDialect(default.DefaultDialect):
             kwargs["database"] = self._database = kwargs.pop("database")
         kwargs["debug"] = self._debug = bool(kwargs.get("debug", False))
         kwargs["verify_ssl"] = self._verify_ssl = (str(kwargs.get("verify_ssl", "true")).lower() in ['true'])
-        kwargs["timeout"] = self._timeout = int(kwargs.get('timeout')) if kwargs.get('timeout') else None
+        kwargs["timeout"] = self._timeout = float(kwargs.get('timeout')) if kwargs.get('timeout') else None
         logger.info(
             "Updated pinot dialect args from %s: %s and %s",
             dict(map(lambda kv: (kv[0], mask_value(kv[0], kv[1], ['password'])), kwargs.items())),
@@ -209,7 +209,7 @@ class PinotDialect(default.DefaultDialect):
             "username": url.username,
             "password": url.password,
             "verify_ssl": self._verify_ssl or True,
-            "timeout": int(self._timeout) if self._timeout else 10.0,
+            "timeout": float(self._timeout) if self._timeout else 10.0,
         }
         if self.engine_type == "multi_stage":
             kwargs.update({"use_multistage_engine": True})

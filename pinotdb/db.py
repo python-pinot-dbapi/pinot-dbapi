@@ -181,7 +181,7 @@ class Connection:
         if not self.session or self.session.is_closed:
             self.session = httpx.Client(
                 verify=self._kwargs.get('verify_ssl'),
-                timeout=int(self._kwargs.get('timeout')) if self._kwargs.get('timeout') else None)
+                timeout=float(self._kwargs.get('timeout')) if self._kwargs.get('timeout') else None)
 
         self._kwargs['session'] = self.session
         cursor = Cursor(*self._args, **self._kwargs)
@@ -213,7 +213,7 @@ class AsyncConnection(Connection):
         if not self.session or self.session.is_closed:
             self.session = httpx.AsyncClient(
                 verify=self._kwargs.get('verify_ssl'),
-                timeout=int(self._kwargs.get('timeout')) if self._kwargs.get('timeout') else None)
+                timeout=float(self._kwargs.get('timeout')) if self._kwargs.get('timeout') else None)
 
         self._kwargs['session'] = self.session
         cursor = AsyncCursor(*self._args, **self._kwargs)
@@ -286,7 +286,7 @@ class Cursor:
         # TODO: Remove this unused parameter when we can afford to break the
         #  interface (e.g. new minor version).
         verify_ssl=True,
-        timeout=10,
+        timeout=10.0,
         extra_request_headers="",
         debug=False,
         preserve_types=False,
