@@ -59,6 +59,26 @@ class PinotDialectTest(PinotTestCase):
             'timeout': 10.0,
         })
 
+    def test_checks_timeout_in_query_params(self):
+        url = make_url(
+            'pinot://localhost:8000/query/sql?controller='
+            'http://localhost:9000/&&verify_ssl=True&&timeout=100')
+
+        cargs, cparams = self.dialect.create_connect_args(url)
+
+        self.assertEqual(cargs, [])
+        self.assertEqual(cparams, {
+            'debug': False,
+            'scheme': 'http',
+            'host': 'localhost',
+            'port': 8000,
+            'path': 'query/sql',
+            'username': None,
+            'password': None,
+            'verify_ssl': True,
+            'timeout': 100,
+        })
+
     def test_creates_connection_args_without_query(self):
         url = make_url('pinot://localhost:8000/query/sql')
 
