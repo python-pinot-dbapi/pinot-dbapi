@@ -74,7 +74,9 @@ curs.execute("""
 for row in curs:
     print(row)
 ```
+
 where,
+
 - `dbName` : the database context that needs to be passed
 - `table1` : table under the `dbName` database
 
@@ -130,7 +132,7 @@ engine = create_engine('pinot://localhost:8099/query/sql?controller=http://local
 # or, provide extra argument to connect with multi-stage engine enabled:
 # engine = create_engine(
 #     "pinot://localhost:8000/query/sql?controller=http://localhost:9000/",
-#     connect_args={"useMultistageEngine": "true"}
+#     connect_args={"use_multistage_engine": "true"}
 # )
 
 places = Table('places', MetaData(bind=engine), autoload=True)
@@ -143,7 +145,15 @@ you may pass them while creating the engine. For example:
 ```python
 engine = create_engine(
         "pinot://localhost:8000/query/sql?controller=http://localhost:9000/",
-        connect_args={"query_options": "useMultistageEngine=true;timeoutMs=10000"})
+        connect_args={"query_options": "use_multistage_engine=true;timeoutMs=10000"})
+```
+
+To support multi-stage engine, you can pass the `use_multistage_engine` parameter in the `connect_args` dictionary.
+
+E.g. In SuperSet Engine Parameters, you can put the following JSON:
+
+```
+{"connect_args":{"use_multistage_engine":"true"}}
 ```
 
 #### Pass the Pinot database context
@@ -158,9 +168,9 @@ The db engine connection string is format as:
 ```
 pinot+http://pinot-broker:8099/query/sql?controller=http://pinot-controller:9000/&database=dbName
 ```
+
 where `dbName` is the database context that needs to be passed.
 If not specified the connection will use the `default` database context while querying.
-
 
 ## Examples with Pinot Quickstart
 
