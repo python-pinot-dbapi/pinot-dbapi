@@ -11,11 +11,12 @@ for now.
 """
 
 from unittest import TestCase
+import json
 
 import responses
 from sqlalchemy import (
     BigInteger, Column, Integer, MetaData, String, Table,
-    column, select,
+    column, select, types,
 )
 from sqlalchemy.engine import make_url
 
@@ -216,6 +217,31 @@ class PinotDialectTest(PinotTestCase):
         ])
 
     @responses.activate
+    def test_gets_columns_with_big_decimal_type(self):
+        table_name = 'some-table'
+        url = f'{self.dialect._controller}/tables/{table_name}/schema'
+        responses.get(url, json={
+            'tables': [table_name],
+            'timeFieldSpec': {},
+            'dimensionFieldSpecs': [{
+                'name': 'price',
+                'dataType': 'BIG_DECIMAL',
+                'defaultNullValue': '0.00',
+            }],
+        })
+
+        columns = self.dialect.get_columns('conn', table_name)
+
+        self.assertEqual(columns, [
+            {
+                'default': '0.00',
+                'name': 'price',
+                'nullable': True,
+                'type': types.Numeric,
+            },
+        ])
+
+    @responses.activate
     def test_gets_columns_with_time_spec(self):
         table_name = 'some-table'
         url = f'{self.dialect._controller}/tables/{table_name}/schema'
@@ -269,17 +295,28 @@ class PinotDialectTest(PinotTestCase):
 
         self.assertEqual(result, [])
 
-    def test_gets_view_definition(self):
-        self.assertIsNone(self.dialect.get_view_definition('conn', 'table'))
-
-    def test_cannot_rollback(self):
-        self.assertIsNone(self.dialect.do_rollback('conn'))
-
     def test_checks_unicode_returns(self):
         self.assertTrue(self.dialect._check_unicode_returns('conn'))
 
     def test_checks_unicode_description(self):
         self.assertTrue(self.dialect._check_unicode_description('conn'))
+
+    def test_json_deserializer(self):
+        # Test with string input
+        self.assertEqual(self.dialect._json_deserializer('{"key": "value"}'), {"key": "value"})
+        # Test with bytes input
+        self.assertEqual(self.dialect._json_deserializer(b'{"key": "value"}'), {"key": "value"})
+        # Test with already parsed JSON
+        self.assertEqual(self.dialect._json_deserializer({"key": "value"}), {"key": "value"})
+        # Test with non-JSON string - should raise JSONDecodeError
+        with self.assertRaises(json.JSONDecodeError):
+            self.dialect._json_deserializer("not json")
+
+    def test_get_view_definition(self):
+        self.assertIsNone(self.dialect.get_view_definition('conn', 'view_name'))
+
+    def test_do_rollback(self):
+        self.assertIsNone(self.dialect.do_rollback('conn'))
 
 
 class PinotMultiStageDialectTest(PinotTestCase):

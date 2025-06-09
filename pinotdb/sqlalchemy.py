@@ -368,6 +368,7 @@ def get_type(data_type, field_size):
         "long": types.BigInteger,
         "float": types.Float,
         "double": types.Numeric,
+        "big_decimal": types.Numeric,
         # BOOLEAN, is added after release 0.7.1.
         # In release 0.7.1 and older releases, BOOLEAN is equivalent to STRING.
         "boolean": types.Boolean,
