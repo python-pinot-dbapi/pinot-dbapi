@@ -22,7 +22,7 @@ sqlalchemy = ["sqlalchemy", "requests"]
 
 [tool.poetry.group.dev.dependencies]
 coverage = ">=6.5,<8.0"
-pytest = "^7.1.3"
+pytest = ">=7.1.3,<9.0.0"
 pytest-cov = "^4.0.0"
 parameterized = "^0.8.1"
 tox = "^3.26.0"
