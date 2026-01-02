@@ -26,6 +26,15 @@ class PinotCompiler(compiler.SQLCompiler):
         column.is_literal = True
         return super().visit_column(column, result_map, **kwargs)
 
+    def visit_function(self, func, **kw):
+        if func.name and func.name.lower() == "count":
+            # Detect no-argument COUNT() and render it as COUNT(*) for Pinot.
+            clauses = getattr(func, "clauses", None)
+            if clauses is not None and len(clauses) == 0:
+                # Pinot requires COUNT(*) instead of COUNT() with no args.
+                return "count(*)"
+        return super().visit_function(func, **kw)
+
     def escape_literal_column(self, text):
         # This is a hack to quote column names that conflict with reserved
         # words since 'column.is_literal = True'
@@ -111,12 +120,15 @@ class PinotIdentifierPareparer(compiler.IdentifierPreparer):
         escape_quote='"',
         omit_schema=True,
     ):
+        # SQLAlchemy 2.x changed the IdentifierPreparer __init__ signature.
+        # Use keyword args so omit_schema is applied correctly (we don't support
+        # schemas in Pinot and don't want emitted SQL like `"default"."table"`).
         super(PinotIdentifierPareparer, self).__init__(
             dialect,
-            initial_quote,
-            final_quote,
-            escape_quote,
-            omit_schema,
+            initial_quote=initial_quote,
+            final_quote=final_quote,
+            escape_quote=escape_quote,
+            omit_schema=omit_schema,
         )
 
 
@@ -195,6 +207,12 @@ class PinotDialect(default.DefaultDialect):
     def dbapi(cls):
         return pinotdb
 
+    @classmethod
+    def import_dbapi(cls):
+        # SQLAlchemy 2.x renamed dbapi() -> import_dbapi(). Keep dbapi() above
+        # for external callers; SQLAlchemy itself will use import_dbapi().
+        return pinotdb
+
     def get_default_broker_port(self):
         if self.scheme.lower() == "https":
             return self.broker_https_port
@@ -221,7 +239,26 @@ class PinotDialect(default.DefaultDialect):
 
     def get_metadata_from_controller(self, path):
         url = parse.urljoin(self._controller, path)
-        r = requests.get(url, headers={"Accept": "application/json", "Database": self._database}, verify=self._verify_ssl, auth= HTTPBasicAuth(self._username, self._password))
+        headers = {"Accept": "application/json"}
+        # Only send Database header when explicitly set to a non-None value,
+        # and always as a string; Requests will reject non-string header values.
+        if self._database is not None:
+            headers["Database"] = str(self._database)
+
+        # Only send basic auth when credentials are provided; passing None here
+        # triggers deprecation warnings in Requests.
+        auth = (
+            HTTPBasicAuth(self._username, self._password)
+            if self._username and self._password
+            else None
+        )
+
+        r = requests.get(
+            url,
+            headers=headers,
+            verify=self._verify_ssl,
+            auth=auth,
+        )
         try:
             result = r.json()
         except ValueError as e:

@@ -117,7 +117,7 @@ pinot+https://<my-user>:<my-password>@<pinot-broker-host>:<pinot-broker-port><pi
 E.g.
 `pinot+https://my-user:my-password@my-secure-pinot-broker:443/query/sql?controller=https://my-secure-pinot-controller/&&verify_ssl=true`.
 
-Below are some sample scripts to query pinot using sqlalchemy:
+Below are some sample scripts to query pinot using SQLAlchemy 2.x:
 
 ```python
 from sqlalchemy import *
@@ -135,8 +135,11 @@ engine = create_engine('pinot://localhost:8099/query/sql?controller=http://local
 #     connect_args={"use_multistage_engine": "true"}
 # )
 
-places = Table('places', MetaData(bind=engine), autoload=True)
-print(select([func.count('*')], from_obj=places).scalar())
+metadata = MetaData()
+places = Table('places', metadata, autoload_with=engine)
+query = select(func.count()).select_from(places)
+with engine.connect() as connection:
+    print(connection.execute(query).scalar())
 ```
 
 To configure query parameters (such as `timeoutMs=10000`) at the engine level

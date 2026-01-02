@@ -44,51 +44,65 @@ def run_quickstart_json_batch_sqlalchemy_example() -> None:
     # engine = create_engine('pinot+http://localhost:8000/query/sql?controller=http://localhost:9000/')
     # engine = create_engine('pinot+https://localhost:8000/query/sql?controller=http://localhost:9000/')
 
-    githubEvents = Table("githubEvents", MetaData(bind=engine), autoload=True, schema="default")
+    metadata = MetaData()
+    githubEvents = Table(
+        "githubEvents",
+        metadata,
+        autoload_with=engine,
+        schema="default",
+    )
     print(f"\nSending Count(*) SQL to Pinot\nResults:")
-    query=select([func.count("*")], from_obj=githubEvents)
-    print(engine.execute(query).scalar())
+    query = select(func.count()).select_from(githubEvents)
+    with engine.connect() as connection:
+        print(connection.execute(query).scalar())
 
     Session = sessionmaker(bind=engine)
     session = Session()
-    query = select(
-        [text("json_extract_scalar(repo, \'$.name\', \'STRING\')"), func.count("*")],
-        from_obj=githubEvents,
-        whereclause=text("json_match(actor, '\"$.login\"=''LombiqBot''')"),
-        group_by=text("1"),
-        order_by=text("2 DESC"),
-        limit="10",
+    query = (
+        select(
+            text("json_extract_scalar(repo, \'$.name\', \'STRING\')"),
+            func.count(),
+        )
+        .select_from(githubEvents)
+        .where(text("json_match(actor, '\"$.login\"=''LombiqBot''')"))
+        .group_by(text("1"))
+        .order_by(text("2 DESC"))
+        .limit(10)
     )
     print(
         f'\nSending SQL: "SELECT json_extract_scalar(repo, \'$.name\', \'STRING\'), count(*) FROM githubEvents'
         f' WHERE json_match(actor, \'\"$.login\"=''LombiqBot''\') GROUP BY 1 ORDER BY 2 DESC LIMIT 10" to Pinot'
         '\nResults:'
     )
-    print(engine.execute(query).fetchall())
+    with engine.connect() as connection:
+        print(connection.execute(query).fetchall())
 
     Session = sessionmaker(bind=engine)
     session = Session()
-    query = select(["*"],
-        from_obj=githubEvents,
-        limit="10",
-    )
+    # Pinot doesn't accept fully qualified reflected column references like
+    # `default.githubEvents.id` (emitted by SQLAlchemy when selecting the whole
+    # reflected table). Use a raw SELECT * instead.
+    query = text("SELECT * FROM githubEvents LIMIT 10")
     print(
         f'\nSending SQL: "SELECT * FROM githubEvents LIMIT 10" to Pinot'
         f'\nResults:'
     )
-    print(engine.execute(query).fetchall())
+    with engine.connect() as connection:
+        print(connection.execute(query).fetchall())
 
     Session = sessionmaker(bind=engine)
     session = Session()
-    query = select([column("created_at_timestamp")],
-        from_obj=githubEvents,
-        limit="10",
+    query = (
+        select(column("created_at_timestamp"))
+        .select_from(githubEvents)
+        .limit(10)
     )
     print(
         f'\nSending SQL: "SELECT created_at_timestamp FROM githubEvents LIMIT 10" to Pinot'
         f'\nResults:'
     )
-    print(engine.execute(query).fetchall())
+    with engine.connect() as connection:
+        print(connection.execute(query).fetchall())
 
 
 def run_main():

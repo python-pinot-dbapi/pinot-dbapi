@@ -66,26 +66,37 @@ def run_pinot_quickstart_batch_sqlalchemy_example() -> None:
     # engine = create_engine('pinot+http://localhost:8000/query/sql?controller=http://localhost:9000/')
     # engine = create_engine('pinot+https://localhost:8000/query/sql?controller=http://localhost:9000/')
 
-    baseballStats = Table("baseballStats", MetaData(bind=engine), autoload=True, schema="default")
+    metadata = MetaData()
+    baseballStats = Table(
+        "baseballStats",
+        metadata,
+        autoload_with=engine,
+        schema="default",
+    )
     print(f"\nSending Count(*) SQL to Pinot")
-    query = select([func.count("*")], from_obj=baseballStats)
-    print(engine.execute(query).scalar())
+    query = select(func.count()).select_from(baseballStats)
+    with engine.connect() as connection:
+        print(connection.execute(query).scalar())
 
     Session = sessionmaker(bind=engine)
     session = Session()
-    query = select(
-        [column("playerName"), func.sum(column("runs")).label("sum_runs")],
-        from_obj=baseballStats,
-        whereclause=text("yearID>=2000"),
-        group_by=[column("playerName")],
-        order_by=text("sum_runs DESC"),
-        limit="5",
+    query = (
+        select(
+            column("playerName"),
+            func.sum(column("runs")).label("sum_runs"),
+        )
+        .select_from(baseballStats)
+        .where(text("yearID>=2000"))
+        .group_by(column("playerName"))
+        .order_by(text("sum_runs DESC"))
+        .limit(5)
     )
     print(
         f'\nSending SQL: "SELECT playerName, sum(runs) AS sum_runs FROM "baseballStats"'
         f' WHERE yearID>=2000 GROUP BY playerName ORDER BY sum_runs DESC LIMIT 5" to Pinot'
     )
-    print(engine.execute(query).fetchall())
+    with engine.connect() as connection:
+        print(connection.execute(query).fetchall())
 
 
 def run_main():

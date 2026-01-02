@@ -55,28 +55,39 @@ def run_pinot_quickstart_hybrid_sqlalchemy_example() -> None:
     # engine = create_engine('pinot+http://localhost:8000/query/sql?controller=http://localhost:9000/')
     # engine = create_engine('pinot+https://localhost:8000/query/sql?controller=http://localhost:9000/')
 
-    airlineStats = Table("airlineStats", MetaData(bind=engine), autoload=True, schema="default")
+    metadata = MetaData()
+    airlineStats = Table(
+        "airlineStats",
+        metadata,
+        autoload_with=engine,
+        schema="default",
+    )
     print(f"\nSending Count(*) SQL to Pinot")
-    query=select([func.count("*")], from_obj=airlineStats)
-    print(engine.execute(query).scalar())
+    query = select(func.count()).select_from(airlineStats)
+    with engine.connect() as connection:
+        print(connection.execute(query).scalar())
 
 
     from sqlalchemy.orm import sessionmaker
 
     Session = sessionmaker(bind=engine)
     session = Session()
-    query = select(
-        [column("OriginCityName"), func.sum(column("Cancelled")).label("sum_cancelled")],
-        from_obj=airlineStats,
-        whereclause=text("Year>2010"),
-        group_by=[column("OriginCityName")],
-        order_by=text("sum_cancelled DESC"),
-        limit="5",
+    query = (
+        select(
+            column("OriginCityName"),
+            func.sum(column("Cancelled")).label("sum_cancelled"),
+        )
+        .select_from(airlineStats)
+        .where(text("Year>2010"))
+        .group_by(column("OriginCityName"))
+        .order_by(text("sum_cancelled DESC"))
+        .limit(5)
     )
     print(
         f'\nSending SQL: "SELECT OriginCityName, sum(Cancelled) AS sum_cancelled FROM "airlineStats" WHERE Year>2010 GROUP BY OriginCityName ORDER BY sum_cancelled DESC LIMIT 5" to Pinot'
     )
-    print(engine.execute(query).fetchall())
+    with engine.connect() as connection:
+        print(connection.execute(query).fetchall())
 
 
 def run_main():

@@ -16,7 +16,7 @@ import json
 import responses
 from sqlalchemy import (
     BigInteger, Column, Integer, MetaData, String, Table,
-    column, select, types,
+    column, func, select, types,
 )
 from sqlalchemy.engine import make_url
 
@@ -406,6 +406,18 @@ class PinotCompilerTest(PinotTestCase):
             str(compiler),
             'SELECT some_table.some_column \nFROM some_table',
         )
+
+    def test_count_without_args_compiles_to_count_star(self):
+        metadata = MetaData()
+        table = Table(
+            'some_table', metadata,
+            Column('some_column', Integer)
+        )
+        statement = select(func.count()).select_from(table)
+
+        compiler = self.dialect.statement_compiler(self.dialect, statement)
+
+        self.assertIn('count(*)', str(compiler))
 
 
 class PinotTypeCompilerTest(PinotTestCase):

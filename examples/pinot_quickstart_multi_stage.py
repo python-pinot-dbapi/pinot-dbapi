@@ -49,8 +49,9 @@ def run_pinot_quickstart_multi_stage_sqlalchemy_example() -> None:
 
 def run_pinot_quickstart_multi_stage_sqlalchemy_example_2() -> None:
 
+    # Multi-stage engine requires /query/sql endpoint.
     engine = create_engine(
-        "pinot://localhost:8000/query?controller=http://localhost:9000/",
+        "pinot://localhost:8000/query/sql?controller=http://localhost:9000/",
         connect_args={"useMultistageEngine": "true"}
     )  # uses HTTP by default :(
     # engine = create_engine('pinot+http://localhost:8000/query/sql?controller=http://localhost:9000/')
