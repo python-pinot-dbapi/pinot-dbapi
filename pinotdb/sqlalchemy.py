@@ -230,7 +230,26 @@ class PinotDialect(default.DefaultDialect):
 
     def get_metadata_from_controller(self, path):
         url = parse.urljoin(self._controller, path)
-        r = requests.get(url, headers={"Accept": "application/json", "Database": self._database}, verify=self._verify_ssl, auth= HTTPBasicAuth(self._username, self._password))
+        headers = {"Accept": "application/json"}
+        # Only send Database header when explicitly set; Requests will reject
+        # non-string header values.
+        if self._database:
+            headers["Database"] = self._database
+
+        # Only send basic auth when credentials are provided; passing None here
+        # triggers deprecation warnings in Requests.
+        auth = (
+            HTTPBasicAuth(self._username, self._password)
+            if self._username and self._password
+            else None
+        )
+
+        r = requests.get(
+            url,
+            headers=headers,
+            verify=self._verify_ssl,
+            auth=auth,
+        )
         try:
             result = r.json()
         except ValueError as e:
