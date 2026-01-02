@@ -26,6 +26,20 @@ class PinotCompiler(compiler.SQLCompiler):
         column.is_literal = True
         return super().visit_column(column, result_map, **kwargs)
 
+    def visit_function(self, func, **kw):
+        if func.name and func.name.lower() == "count":
+        # SQLAlchemy's internal function-arg storage differs by version:
+        # 2.x exposes func.clauses, while older 1.4-era builds used
+        # func.clause_expr.clauses. Check both to detect no-arg COUNT().
+            clauses = getattr(func, "clauses", None)
+            if clauses is None:
+                clause_expr = getattr(func, "clause_expr", None)
+                clauses = getattr(clause_expr, "clauses", None) if clause_expr else None
+            if clauses is not None and len(clauses) == 0:
+                # Pinot requires COUNT(*) instead of COUNT() with no args.
+                return "count(*)"
+        return super().visit_function(func, **kw)
+
     def escape_literal_column(self, text):
         # This is a hack to quote column names that conflict with reserved
         # words since 'column.is_literal = True'
@@ -231,10 +245,10 @@ class PinotDialect(default.DefaultDialect):
     def get_metadata_from_controller(self, path):
         url = parse.urljoin(self._controller, path)
         headers = {"Accept": "application/json"}
-        # Only send Database header when explicitly set; Requests will reject
-        # non-string header values.
-        if self._database:
-            headers["Database"] = self._database
+        # Only send Database header when explicitly set to a non-None value,
+        # and always as a string; Requests will reject non-string header values.
+        if self._database is not None:
+            headers["Database"] = str(self._database)
 
         # Only send basic auth when credentials are provided; passing None here
         # triggers deprecation warnings in Requests.
