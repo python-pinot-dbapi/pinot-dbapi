@@ -28,13 +28,8 @@ class PinotCompiler(compiler.SQLCompiler):
 
     def visit_function(self, func, **kw):
         if func.name and func.name.lower() == "count":
-        # SQLAlchemy's internal function-arg storage differs by version:
-        # 2.x exposes func.clauses, while older 1.4-era builds used
-        # func.clause_expr.clauses. Check both to detect no-arg COUNT().
+            # Detect no-argument COUNT() and render it as COUNT(*) for Pinot.
             clauses = getattr(func, "clauses", None)
-            if clauses is None:
-                clause_expr = getattr(func, "clause_expr", None)
-                clauses = getattr(clause_expr, "clauses", None) if clause_expr else None
             if clauses is not None and len(clauses) == 0:
                 # Pinot requires COUNT(*) instead of COUNT() with no args.
                 return "count(*)"
@@ -215,7 +210,7 @@ class PinotDialect(default.DefaultDialect):
     @classmethod
     def import_dbapi(cls):
         # SQLAlchemy 2.x renamed dbapi() -> import_dbapi(). Keep dbapi() above
-        # for backwards compatibility; prefer import_dbapi() going forward.
+        # for external callers; SQLAlchemy itself will use import_dbapi().
         return pinotdb
 
     def get_default_broker_port(self):
