@@ -63,7 +63,7 @@ make run-pinot
 
 Notes:
 - The container is named **`pinot-quickstart`** and exposes ports **2123**, **9000** (controller), **8000** (broker).
-- Run `make run-pinot` in one terminal, then run `make test-integration` in another. `make test-integration` will fail fast if the container isn't running.
+- Run `make run-pinot` in one terminal, then run `make test-integration` in another. `make test-integration` will fail fast if Pinot isn't reachable on `PINOT_HOST:PINOT_BROKER_PORT` and `PINOT_HOST:PINOT_CONTROLLER_PORT` (defaults: `localhost:8000` and `localhost:9000`).
 - If you need to restart cleanly, you may have to stop/remove the container (e.g. `docker rm -f pinot-quickstart`).
 
 ## tox

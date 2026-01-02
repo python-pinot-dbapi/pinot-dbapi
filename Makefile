@@ -4,10 +4,22 @@ init: poetry lock
 test:
 	poetry run pytest
 
+PINOT_HOST ?= localhost
+PINOT_BROKER_PORT ?= 8000
+PINOT_CONTROLLER_PORT ?= 9000
+
 check-pinot:
-	@command -v docker >/dev/null 2>&1 || (echo "docker is required for integration tests. Install Docker Desktop, then run: make run-pinot" && exit 1)
-	@docker inspect -f '{{.State.Running}}' pinot-quickstart >/dev/null 2>&1 || (echo "Pinot quickstart container 'pinot-quickstart' is not running. Start it first in another terminal: make run-pinot" && exit 1)
-	@docker inspect -f '{{.State.Running}}' pinot-quickstart 2>/dev/null | grep -q true || (echo "Pinot quickstart container 'pinot-quickstart' exists but is not running. Start it: docker start pinot-quickstart (or re-create it via: make run-pinot)" && exit 1)
+	@command -v nc >/dev/null 2>&1 || (echo "nc (netcat) is required to precheck Pinot connectivity for integration tests." && exit 1)
+	@HOST="$(PINOT_HOST)"; BROKER_PORT="$(PINOT_BROKER_PORT)"; CONTROLLER_PORT="$(PINOT_CONTROLLER_PORT)"; \
+		missing=""; \
+		nc -z -w 2 "$$HOST" "$$BROKER_PORT" >/dev/null 2>&1 || missing="$$missing broker=$$HOST:$$BROKER_PORT"; \
+		nc -z -w 2 "$$HOST" "$$CONTROLLER_PORT" >/dev/null 2>&1 || missing="$$missing controller=$$HOST:$$CONTROLLER_PORT"; \
+		if [ -n "$$missing" ]; then \
+			echo "Pinot is not reachable ($$missing)."; \
+			echo "Start Pinot (local quickstart): make run-pinot"; \
+			echo "Or set PINOT_HOST / PINOT_BROKER_PORT / PINOT_CONTROLLER_PORT to point to an existing Pinot cluster."; \
+			exit 1; \
+		fi
 
 test-integration: check-pinot
 	poetry run pytest tests/integration/
