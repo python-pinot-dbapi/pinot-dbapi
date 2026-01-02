@@ -79,7 +79,10 @@ def run_quickstart_json_batch_sqlalchemy_example() -> None:
 
     Session = sessionmaker(bind=engine)
     session = Session()
-    query = select(githubEvents).limit(10)
+    # Pinot doesn't accept fully qualified reflected column references like
+    # `default.githubEvents.id` (emitted by SQLAlchemy when selecting the whole
+    # reflected table). Use a raw SELECT * instead.
+    query = text("SELECT * FROM githubEvents LIMIT 10")
     print(
         f'\nSending SQL: "SELECT * FROM githubEvents LIMIT 10" to Pinot'
         f'\nResults:'
