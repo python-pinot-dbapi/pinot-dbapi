@@ -52,8 +52,7 @@ async def run_pinot_async_example():
 
 
 def run_main():
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_pinot_async_example())
+    asyncio.run(run_pinot_async_example())
 
 
 if __name__ == '__main__':
