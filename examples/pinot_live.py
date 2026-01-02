@@ -48,8 +48,8 @@ def run_pinot_live_example() -> None:
         .limit(10)
     )
     print(
-        f'\nSending SQL: "SELECT playerName, sum(runs) AS sum_runs FROM "baseballStats"'
-        f' WHERE yearID>=2000 GROUP BY playerName ORDER BY sum_runs DESC LIMIT 5" to Pinot'
+        '\nSending SQL: "SELECT AirlineID, max(AirTime) AS max_airtime FROM airlineStats '
+        'GROUP BY AirlineID ORDER BY max_airtime DESC LIMIT 10" to Pinot'
     )
     with engine.connect() as connection:
         print(connection.execute(query).fetchall())
