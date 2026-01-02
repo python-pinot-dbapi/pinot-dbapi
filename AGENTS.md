@@ -17,7 +17,7 @@ This repository contains **`pinotdb`**, a Python DB-API 2.0 client and **SQLAlch
 
 ## Supported Python versions
 
-Declared in `pyproject.toml`: **Python `>=3.9,<4`**.
+Declared in `pyproject.toml`: **Python `>=3.10,<4`**.
 
 ## Local development (recommended)
 
