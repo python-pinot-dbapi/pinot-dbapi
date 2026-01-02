@@ -111,12 +111,15 @@ class PinotIdentifierPareparer(compiler.IdentifierPreparer):
         escape_quote='"',
         omit_schema=True,
     ):
+        # SQLAlchemy 2.x changed the IdentifierPreparer __init__ signature.
+        # Use keyword args so omit_schema is applied correctly (we don't support
+        # schemas in Pinot and don't want emitted SQL like `"default"."table"`).
         super(PinotIdentifierPareparer, self).__init__(
             dialect,
-            initial_quote,
-            final_quote,
-            escape_quote,
-            omit_schema,
+            initial_quote=initial_quote,
+            final_quote=final_quote,
+            escape_quote=escape_quote,
+            omit_schema=omit_schema,
         )
 
 
@@ -193,6 +196,12 @@ class PinotDialect(default.DefaultDialect):
 
     @classmethod
     def dbapi(cls):
+        return pinotdb
+
+    @classmethod
+    def import_dbapi(cls):
+        # SQLAlchemy 2.x renamed dbapi() -> import_dbapi(). Keep dbapi() above
+        # for backwards compatibility; prefer import_dbapi() going forward.
         return pinotdb
 
     def get_default_broker_port(self):

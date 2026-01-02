@@ -23,25 +23,36 @@ def run_pinot_live_example() -> None:
         connect_args={"query_options": "timeoutMs=10000"}
     )  # uses HTTP by default :(
 
-    airlineStats = Table("airlineStats", MetaData(bind=engine), autoload=True, schema="default")
+    metadata = MetaData()
+    airlineStats = Table(
+        "airlineStats",
+        metadata,
+        autoload_with=engine,
+        schema="default",
+    )
     print(f"\nSending Count(*) SQL to Pinot")
-    query=select([func.count("*")], from_obj=airlineStats)
-    print(engine.execute(query).scalar())
+    query = select(func.count()).select_from(airlineStats)
+    with engine.connect() as connection:
+        print(connection.execute(query).scalar())
 
     Session = sessionmaker(bind=engine)
     session = Session()
-    query = select(
-        [column("AirlineID"), func.max(column("AirTime")).label("max_airtime")],
-        from_obj=airlineStats,
-        group_by=[column("AirlineID")],
-        order_by=text("max_airtime DESC"),
-        limit="10",
+    query = (
+        select(
+            column("AirlineID"),
+            func.max(column("AirTime")).label("max_airtime"),
+        )
+        .select_from(airlineStats)
+        .group_by(column("AirlineID"))
+        .order_by(text("max_airtime DESC"))
+        .limit(10)
     )
     print(
         f'\nSending SQL: "SELECT playerName, sum(runs) AS sum_runs FROM "baseballStats"'
         f' WHERE yearID>=2000 GROUP BY playerName ORDER BY sum_runs DESC LIMIT 5" to Pinot'
     )
-    print(engine.execute(query).fetchall())
+    with engine.connect() as connection:
+        print(connection.execute(query).fetchall())
 
 
 def run_main():
