@@ -689,7 +689,91 @@ class CursorTest(TestCase):
         cursor.setoutputsizes(123)
 
         # All good, nothing happened
-    
+
+    def test_exposes_issue_66_stats(self):
+        expected_stats = {
+            'numServersQueried': 3,
+            'numServersResponded': 3,
+            'numSegmentsQueried': 15,
+            'numSegmentsProcessed': 14,
+            'numSegmentsMatched': 12,
+            'numConsumingSegmentsQueried': 2,
+            'numDocsScanned': 200,
+            'numEntriesScannedInFilter': 40,
+            'numEntriesScannedPostFilter': 25,
+            'numGroupsLimitReached': False,
+            'totalDocs': 10000,
+            'timeUsedMs': 9,
+            'minConsumingFreshnessTimeMs': 1730000000000,
+            'numSegmentsPrunedByBroker': 4,
+        }
+        cursor = self.create_cursor(
+            {
+                'dataSchema': {
+                    'columnNames': ['age'],
+                    'columnDataTypes': ['INT'],
+                },
+                'rows': [[1]],
+            },
+            extra_payload=expected_stats,
+        )
+
+        cursor.execute('some statement')
+
+        for key, value in expected_stats.items():
+            self.assertEqual(cursor.query_stats.get(key), value)
+
+    def test_exposes_query_stats(self):
+        cursor = self.create_cursor(
+            {
+                'dataSchema': {
+                    'columnNames': ['age'],
+                    'columnDataTypes': ['INT'],
+                },
+                'rows': [[1]],
+            },
+            extra_payload={
+                'timeUsedMs': 7,
+                'numDocsScanned': 12,
+                'numGroupsLimitReached': True,
+            },
+        )
+
+        cursor.execute('some statement')
+
+        self.assertEqual(cursor.query_stats, {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+            'timeUsedMs': 7,
+            'numDocsScanned': 12,
+            'numGroupsLimitReached': True,
+        })
+        self.assertEqual(cursor.timeUsedMs, 7)
+
+    def test_excludes_non_scalar_sections_from_query_stats(self):
+        cursor = self.create_cursor(
+            {
+                'dataSchema': {
+                    'columnNames': ['age'],
+                    'columnDataTypes': ['INT'],
+                },
+                'rows': [[1]],
+            },
+            extra_payload={
+                'timeUsedMs': 3,
+                'traceInfo': {'broker': 'b1'},
+                'exceptions': [],
+            },
+        )
+
+        cursor.execute('some statement')
+
+        self.assertEqual(cursor.query_stats, {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+            'timeUsedMs': 3,
+        })
+
     def test_checks_raw_query_response_with_single_stage_and_status_code_200(self):
         cursor = self.create_cursor(
                     {
@@ -850,6 +934,31 @@ class AsyncCursorTest(IsolatedAsyncioTestCase):
             json={'sql': 'some statement'},
             auth=(b'john.doe', b'mypass'),
         )
+
+    async def test_exposes_query_stats(self):
+        cursor = self.create_cursor(
+            {
+                'dataSchema': {
+                    'columnNames': ['age'],
+                    'columnDataTypes': ['INT'],
+                },
+                'rows': [[1]],
+            },
+            extra_payload={
+                'timeUsedMs': 5,
+                'numEntriesScannedPostFilter': 18,
+            },
+        )
+
+        await cursor.execute('some statement')
+
+        self.assertEqual(cursor.query_stats, {
+            'numServersResponded': 1,
+            'numServersQueried': 1,
+            'timeUsedMs': 5,
+            'numEntriesScannedPostFilter': 18,
+        })
+        self.assertEqual(cursor.timeUsedMs, 5)
 
 
 class EscapeTest(TestCase):
