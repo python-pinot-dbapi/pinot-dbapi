@@ -57,6 +57,38 @@ them in as part of the `execute` method. For example:
 curs.execute("select * from airlineStats air limit 10", queryOptions="useMultistageEngine=true")
 ```
 
+Broker query stats are exposed after `execute()` on `cursor.query_stats`:
+
+```python
+curs.execute("select * from airlineStats air limit 10")
+print(curs.query_stats.get("numServersQueried"))
+print(curs.query_stats.get("numDocsScanned"))
+print(curs.timeUsedMs)  # Backward compatible shorthand
+```
+
+`cursor.query_stats` contains scalar top-level metrics returned by the broker
+for the latest `execute()` call (works for both sync and async cursors).
+Common keys include:
+
+- `numServersQueried`
+- `numServersResponded`
+- `numSegmentsQueried`
+- `numSegmentsProcessed`
+- `numSegmentsMatched`
+- `numConsumingSegmentsQueried`
+- `numDocsScanned`
+- `numEntriesScannedInFilter`
+- `numEntriesScannedPostFilter`
+- `numGroupsLimitReached`
+- `totalDocs`
+- `timeUsedMs`
+- `minConsumingFreshnessTimeMs`
+- `numSegmentsPrunedByBroker`
+
+If you need the full broker payload (including nested sections such as
+`resultTable`, `exceptions`, and tracing information), use
+`cursor.raw_query_response`.
+
 #### Pass the Pinot database context
 
 > [!IMPORTANT]

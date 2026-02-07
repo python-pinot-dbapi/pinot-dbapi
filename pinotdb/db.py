@@ -16,6 +16,14 @@ from pinotdb import exceptions
 
 logger = logging.getLogger(__name__)
 
+_QUERY_STATS_EXCLUDED_FIELDS = frozenset({
+    "resultTable",
+    "exceptions",
+    "traceInfo",
+    "selectionResults",
+    "aggregationResults",
+})
+
 
 class Type(Enum):
     STRING = 1
@@ -94,6 +102,15 @@ def get_columns_and_types(column_names, types):
         }
         for name, type in zip(column_names, types)
     ]
+
+
+def get_query_stats(payload):
+    """Return scalar top-level broker query stats from a Pinot response."""
+    return {
+        key: value for key, value in payload.items()
+        if key not in _QUERY_STATS_EXCLUDED_FIELDS
+        and not isinstance(value, (dict, list))
+    }
 
 
 TypeCodeAndValue = namedtuple(
@@ -316,6 +333,7 @@ class Cursor:
         self.rowcount = -1
         self._results = None
         self.raw_query_response = None
+        self.query_stats = {}
         self.timeUsedMs = -1
         self._debug = debug
         self._preserve_types = preserve_types
@@ -419,9 +437,10 @@ class Cursor:
                 f"with the status code {status_code}:\n{payload}"
             )
 
-        num_servers_responded = payload.get("numServersResponded", -1)
-        num_servers_queried = payload.get("numServersQueried", -1)
-        self.timeUsedMs = payload.get("timeUsedMs", -1)
+        self.query_stats = get_query_stats(payload)
+        num_servers_responded = self.query_stats.get("numServersResponded", -1)
+        num_servers_queried = self.query_stats.get("numServersQueried", -1)
+        self.timeUsedMs = self.query_stats.get("timeUsedMs", -1)
 
         self.check_sufficient_responded(
             input_query, num_servers_queried, num_servers_responded
