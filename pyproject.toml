@@ -46,6 +46,10 @@ show_missing = true
 pinot = "pinotdb.sqlalchemy:PinotHTTPDialect"
 "pinot.http" = "pinotdb.sqlalchemy:PinotHTTPDialect"
 "pinot.https" = "pinotdb.sqlalchemy:PinotHTTPSDialect"
+"pinot.async" = "pinotdb.sqlalchemy:PinotHTTPAsyncDialect"
+"pinot.rest_async" = "pinotdb.sqlalchemy:PinotHTTPAsyncDialect"
+"pinot.http_async" = "pinotdb.sqlalchemy:PinotHTTPAsyncDialect"
+"pinot.https_async" = "pinotdb.sqlalchemy:PinotHTTPSAsyncDialect"
 
 [build-system]
 requires = ["poetry-core"]

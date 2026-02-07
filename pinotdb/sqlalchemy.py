@@ -1,10 +1,14 @@
+import collections
+import sys
 from urllib import parse
 
 import requests
 from requests.auth import HTTPBasicAuth
 from sqlalchemy.engine import default
+from sqlalchemy.engine.interfaces import AdaptedConnection
 from sqlalchemy.sql import compiler
-from sqlalchemy import types
+from sqlalchemy import pool, types
+from sqlalchemy.util.concurrency import await_only
 
 import pinotdb
 from pinotdb import exceptions
@@ -121,8 +125,9 @@ class PinotIdentifierPareparer(compiler.IdentifierPreparer):
         omit_schema=True,
     ):
         # SQLAlchemy 2.x changed the IdentifierPreparer __init__ signature.
-        # Use keyword args so omit_schema is applied correctly (we don't support
-        # schemas in Pinot and don't want emitted SQL like `"default"."table"`).
+        # Use keyword args so omit_schema is applied correctly (we don't
+        # support schemas in Pinot and avoid emitted SQL like
+        # `"default"."table"`.
         super(PinotIdentifierPareparer, self).__init__(
             dialect,
             initial_quote=initial_quote,
@@ -141,6 +146,176 @@ def mask_value(key, value, sensitive_keys):
     if key in sensitive_keys:
         return 'xxxxxx'
     return value
+
+
+class PinotAsyncAdaptDBAPIModule:
+    def __init__(self, dbapi_module):
+        self._dbapi_module = dbapi_module
+        self.paramstyle = dbapi_module.paramstyle
+        self.apilevel = dbapi_module.apilevel
+        self.threadsafety = dbapi_module.threadsafety
+        self.Warning = dbapi_module.Warning
+        self.Error = dbapi_module.Error
+        self.InterfaceError = dbapi_module.InterfaceError
+        self.DatabaseError = dbapi_module.DatabaseError
+        self.InternalError = dbapi_module.InternalError
+        self.OperationalError = dbapi_module.OperationalError
+        self.ProgrammingError = dbapi_module.ProgrammingError
+        self.IntegrityError = dbapi_module.IntegrityError
+        self.DataError = dbapi_module.DataError
+        self.NotSupportedError = dbapi_module.NotSupportedError
+
+    def connect(self, *args, **kwargs):
+        return PinotAsyncAdaptConnection(
+            self,
+            self._dbapi_module.connect_async(*args, **kwargs),
+        )
+
+
+class PinotAsyncAdaptConnection(AdaptedConnection):
+    __slots__ = ("dbapi", "_connection")
+
+    def __init__(self, dbapi, connection):
+        self.dbapi = dbapi
+        self._connection = connection
+
+    def cursor(self, server_side=False):
+        return PinotAsyncAdaptCursor(self)
+
+    def execute(self, operation, parameters=None):
+        cursor = self.cursor()
+        cursor.execute(operation, parameters)
+        return cursor
+
+    def rollback(self):
+        # Pinot has no transaction support.
+        return None
+
+    def commit(self):
+        # Pinot has no transaction support.
+        return None
+
+    def close(self):
+        try:
+            await_only(self._connection.close())
+        except Exception as error:
+            self._handle_exception(error)
+
+    def _handle_exception(self, error):
+        exc_info = sys.exc_info()
+        raise error.with_traceback(exc_info[2])
+
+
+class PinotAsyncAdaptCursor:
+    __slots__ = (
+        "_adapt_connection",
+        "_cursor",
+        "_rows",
+        "_description",
+        "_rowcount",
+        "_arraysize",
+    )
+
+    def __init__(self, adapt_connection):
+        self._adapt_connection = adapt_connection
+        self._cursor = adapt_connection._connection.cursor()
+        self._rows = collections.deque()
+        self._description = None
+        self._rowcount = -1
+        self._arraysize = self._cursor.arraysize
+
+    @property
+    def description(self):
+        if self._cursor is None:
+            return self._description
+        return self._cursor.description
+
+    @property
+    def rowcount(self):
+        if self._cursor is None:
+            return self._rowcount
+        return self._cursor.rowcount
+
+    @property
+    def arraysize(self):
+        if self._cursor is None:
+            return self._arraysize
+        return self._cursor.arraysize
+
+    @arraysize.setter
+    def arraysize(self, value):
+        self._arraysize = value
+        if self._cursor is not None:
+            self._cursor.arraysize = value
+
+    def close(self):
+        self._rows.clear()
+        if self._cursor is None:
+            return
+
+        try:
+            await_only(self._cursor.close())
+            self._cursor = None
+        except Exception as error:
+            self._adapt_connection._handle_exception(error)
+
+    def execute(self, operation, parameters=None):
+        try:
+            if parameters is None:
+                await_only(self._cursor.execute(operation))
+            else:
+                await_only(self._cursor.execute(operation, parameters))
+
+            self._description = self._cursor.description
+            self._rowcount = self._cursor.rowcount
+            if self._description:
+                self._rows = collections.deque(self._cursor.fetchall())
+            else:
+                self._rows.clear()
+            return self
+        except Exception as error:
+            self._adapt_connection._handle_exception(error)
+
+    def executemany(self, operation, seq_of_parameters=None):
+        return self._cursor.executemany(operation, seq_of_parameters)
+
+    def fetchone(self):
+        if self._rows:
+            return self._rows.popleft()
+        return None
+
+    def fetchmany(self, size=None):
+        if size is None:
+            size = self.arraysize
+        return [
+            self._rows.popleft() for _ in range(min(size, len(self._rows)))
+        ]
+
+    def fetchall(self):
+        rows = list(self._rows)
+        self._rows.clear()
+        return rows
+
+    def __iter__(self):
+        while self._rows:
+            yield self._rows.popleft()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type_, value, traceback):
+        self.close()
+
+    async def _async_soft_close(self):
+        if self._cursor is None:
+            return
+
+        self._description = self._cursor.description
+        await self._cursor.close()
+        self._cursor = None
+
+
+_PINOT_ASYNC_DBAPI = PinotAsyncAdaptDBAPIModule(pinotdb)
 
 
 class PinotDialect(default.DefaultDialect):
@@ -193,11 +368,25 @@ class PinotDialect(default.DefaultDialect):
         if "database" in kwargs:
             kwargs["database"] = self._database = kwargs.pop("database")
         kwargs["debug"] = self._debug = bool(kwargs.get("debug", False))
-        kwargs["verify_ssl"] = self._verify_ssl = (str(kwargs.get("verify_ssl", "true")).lower() in ['true'])
-        kwargs["timeout"] = self._timeout = float(kwargs.get('timeout')) if kwargs.get('timeout') else None
+        kwargs["verify_ssl"] = self._verify_ssl = (
+            str(kwargs.get("verify_ssl", "true")).lower() in ['true']
+        )
+        kwargs["timeout"] = self._timeout = (
+            float(kwargs.get('timeout'))
+            if kwargs.get('timeout')
+            else None
+        )
         logger.info(
             "Updated pinot dialect args from %s: %s and %s",
-            dict(map(lambda kv: (kv[0], mask_value(kv[0], kv[1], ['password'])), kwargs.items())),
+            dict(
+                map(
+                    lambda kv: (
+                        kv[0],
+                        mask_value(kv[0], kv[1], ['password']),
+                    ),
+                    kwargs.items(),
+                )
+            ),
             self._controller,
             self._debug,
         )
@@ -241,7 +430,7 @@ class PinotDialect(default.DefaultDialect):
         url = parse.urljoin(self._controller, path)
         headers = {"Accept": "application/json"}
         # Only send Database header when explicitly set to a non-None value,
-        # and always as a string; Requests will reject non-string header values.
+        # always as a string; Requests rejects non-string header values.
         if self._database is not None:
             headers["Database"] = str(self._database)
 
@@ -263,12 +452,16 @@ class PinotDialect(default.DefaultDialect):
             result = r.json()
         except ValueError as e:
             raise exceptions.DatabaseError(
-                "Got invalid json response from " f"{self._controller}:{path}: {r.text}"
+                "Got invalid json response from "
+                f"{self._controller}:{path}: {r.text}"
             ) from e
         # Skipping coverage of log lines - because covering them adds no value.
         if self._debug:  # pragma: no cover
             logger.info(
-                "metadata get on %s:%s returned %s", self._controller, path, result
+                "metadata get on %s:%s returned %s",
+                self._controller,
+                path,
+                result,
             )
         return result
 
@@ -295,10 +488,15 @@ class PinotDialect(default.DefaultDialect):
         return {}
 
     def get_columns(self, connection, table_name, schema=None, **kwargs):
-        payload = self.get_metadata_from_controller(f"/tables/{table_name}/schema")
+        payload = self.get_metadata_from_controller(
+            f"/tables/{table_name}/schema"
+        )
 
         logger.info(
-            "Getting columns for %s from %s: %s", table_name, self._controller, payload
+            "Getting columns for %s from %s: %s",
+            table_name,
+            self._controller,
+            payload,
         )
         specs = (
             payload.get("dimensionFieldSpecs", [])
@@ -310,7 +508,8 @@ class PinotDialect(default.DefaultDialect):
         if timeFieldSpec:
             specs.append(
                 timeFieldSpec.get(
-                    "outgoingGranularitySpec", timeFieldSpec["incomingGranularitySpec"]
+                    "outgoingGranularitySpec",
+                    timeFieldSpec["incomingGranularitySpec"],
                 )
             )
 
@@ -332,7 +531,9 @@ class PinotDialect(default.DefaultDialect):
     def get_foreign_keys(self, connection, table_name, schema=None, **kwargs):
         return []
 
-    def get_check_constraints(self, connection, table_name, schema=None, **kwargs):
+    def get_check_constraints(
+        self, connection, table_name, schema=None, **kwargs
+    ):
         return []
 
     def get_table_comment(self, connection, table_name, schema=None, **kwargs):
@@ -341,10 +542,14 @@ class PinotDialect(default.DefaultDialect):
     def get_indexes(self, connection, table_name, schema=None, **kwargs):
         return []
 
-    def get_unique_constraints(self, connection, table_name, schema=None, **kwargs):
+    def get_unique_constraints(
+        self, connection, table_name, schema=None, **kwargs
+    ):
         return []
 
-    def get_view_definition(self, connection, view_name, schema=None, **kwargs):
+    def get_view_definition(
+        self, connection, view_name, schema=None, **kwargs
+    ):
         pass
 
     def do_rollback(self, dbapi_connection):
@@ -359,16 +564,24 @@ class PinotDialect(default.DefaultDialect):
     # Fix for SQL Alchemy error
     def _json_deserializer(self, content: any):
         """
-        This function fixes the following error from SQLAlchemy: 
+        This function fixes the following error from SQLAlchemy:
 
         Traceback (most recent call last):
         File "...sqlalchemy/sql/sqltypes.py", line 2714, in result_processor
         json_deserializer = dialect._json_deserializer or json.loads
-        AttributeError: 'PinotDialect' object has no attribute '_json_deserializer'
+        AttributeError: 'PinotDialect' object has no attribute
+        '_json_deserializer'
 
-        The expected behavior is to simply return the passed object (called `content`) because the json.loads() method should already have been called in `db.py`. However, if the content is still one of the supported types for json.loads to deserialize, it will try to do so.
+        The expected behavior is to simply return the passed object (called
+        `content`) because the json.loads() method should already have been
+        called in `db.py`. However, if the content is still one of the
+        supported types for json.loads to deserialize, it will try to do so.
         """
-        if isinstance(content, str) or isinstance(content, bytearray) or isinstance(content, bytes):
+        if (
+            isinstance(content, str)
+            or isinstance(content, bytearray)
+            or isinstance(content, bytes)
+        ):
             return json.loads(content)
         else:
             return content
@@ -386,6 +599,40 @@ class PinotMultiStageDialect(PinotDialect):
 
 
 class PinotHTTPSMultiStageDialect(PinotDialect):
+    engine_type = "multi_stage"
+    scheme = "https"
+
+
+class PinotAsyncDialect(PinotDialect):
+    driver = "rest_async"
+    is_async = True
+    supports_statement_cache = False
+
+    @classmethod
+    def get_pool_class(cls, url):
+        return pool.AsyncAdaptedQueuePool
+
+    @classmethod
+    def dbapi(cls):
+        return _PINOT_ASYNC_DBAPI
+
+    @classmethod
+    def import_dbapi(cls):
+        return _PINOT_ASYNC_DBAPI
+
+
+PinotHTTPAsyncDialect = PinotAsyncDialect
+
+
+class PinotHTTPSAsyncDialect(PinotAsyncDialect):
+    scheme = "https"
+
+
+class PinotMultiStageAsyncDialect(PinotAsyncDialect):
+    engine_type = "multi_stage"
+
+
+class PinotHTTPSMultiStageAsyncDialect(PinotAsyncDialect):
     engine_type = "multi_stage"
     scheme = "https"
 
