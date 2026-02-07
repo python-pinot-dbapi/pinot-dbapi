@@ -43,7 +43,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     name: Pinot DB API Integration Test Set
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
       - name: Pull Pinot Docker Image
         uses: ./.github/actions/pull-docker-image
         with:
@@ -56,7 +56,7 @@ jobs:
           broker-forward-port: 8000
           arguments: QuickStart -type MULTI_STAGE
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: Setup Python Test Env
@@ -78,9 +78,9 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     name: Pinot DB API Unit Test Set
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: Setup Python Test Env
@@ -93,7 +93,7 @@ jobs:
             make test-unit
           fi
       - name: Upload Coverage to Codecov
-        if: ${{ matrix.python-version == '3.12' && secrets.CODECOV_TOKEN != '' }}
+        if: ${{ matrix.python-version == '3.12' && env.CODECOV_TOKEN != '' }}
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
@@ -102,3 +102,5 @@ jobs:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

@@ -28,7 +28,7 @@ test-unit:
 	poetry run pytest -s tests/unit/
 
 coverage:
-	poetry run pytest -s tests/unit/ --cov-report=term-missing --cov-report=xml:coverage.xml --cov-report=json:coverage.json
+	poetry run pytest -o addopts='' -s tests/unit/ --cov=pinotdb --cov-branch --cov-report=term-missing --cov-report=xml:coverage.xml --cov-report=json:coverage.json
 
 lint:
 	poetry run flake8 pinotdb
