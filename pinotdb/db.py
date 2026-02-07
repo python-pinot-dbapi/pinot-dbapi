@@ -198,7 +198,12 @@ class Connection:
         if not self.session or self.session.is_closed:
             self.session = httpx.Client(
                 verify=self._kwargs.get('verify_ssl'),
-                timeout=float(self._kwargs.get('timeout')) if self._kwargs.get('timeout') else None)
+                timeout=(
+                    float(self._kwargs.get('timeout'))
+                    if self._kwargs.get('timeout')
+                    else None
+                ),
+            )
 
         self._kwargs['session'] = self.session
         cursor = Cursor(*self._args, **self._kwargs)
@@ -230,7 +235,12 @@ class AsyncConnection(Connection):
         if not self.session or self.session.is_closed:
             self.session = httpx.AsyncClient(
                 verify=self._kwargs.get('verify_ssl'),
-                timeout=float(self._kwargs.get('timeout')) if self._kwargs.get('timeout') else None)
+                timeout=(
+                    float(self._kwargs.get('timeout'))
+                    if self._kwargs.get('timeout')
+                    else None
+                ),
+            )
 
         self._kwargs['session'] = self.session
         cursor = AsyncCursor(*self._args, **self._kwargs)
@@ -416,14 +426,14 @@ class Cursor:
         try:
             payload = query_response.json()
             self.raw_query_response = {
-                    "response" : payload, 
-                    "status_code" : query_response.status_code
-                }
+                "response": payload,
+                "status_code": query_response.status_code,
+            }
         except Exception as e:
             self.raw_query_response = {
-                    "response" : query_response.text, 
-                    "status_code" : query_response.status_code
-                }
+                "response": query_response.text,
+                "status_code": query_response.status_code,
+            }
             raise exceptions.DatabaseError(
                 f"Error when querying {input_query} from {self.url}, "
                 f"raw response is:\n{query_response.text}"

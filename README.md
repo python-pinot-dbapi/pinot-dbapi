@@ -174,6 +174,26 @@ with engine.connect() as connection:
     print(connection.execute(query).scalar())
 ```
 
+For asyncio support with SQLAlchemy `create_async_engine`, use the async
+dialect:
+
+```python
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
+engine = create_async_engine(
+    "pinot+async://localhost:8000/query/sql?controller=http://localhost:9000/"
+)
+# or, using explicit async HTTPS:
+# engine = create_async_engine(
+#     "pinot+https_async://localhost:443/query/sql?controller=https://localhost:9000/"
+# )
+
+async with engine.connect() as connection:
+    result = await connection.execute(text("SELECT * FROM baseballStats LIMIT 5"))
+    print(result.fetchall())
+```
+
 To configure query parameters (such as `timeoutMs=10000`) at the engine level
 you may pass them while creating the engine. For example:
 
