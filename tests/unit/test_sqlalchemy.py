@@ -10,15 +10,20 @@ So it's better to stick to running unit tests from the CLI instead, at least
 for now.
 """
 
+import asyncio
+import collections
 from unittest import TestCase
+from unittest.mock import patch
 import json
 
 import responses
 from sqlalchemy import (
     BigInteger, Column, Integer, MetaData, String, Table,
-    column, func, select, types,
+    column, func, select, text, types,
 )
+from sqlalchemy.dialects import registry
 from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import create_async_engine
 
 import pinotdb
 from pinotdb import exceptions, sqlalchemy as ps
@@ -27,6 +32,94 @@ from pinotdb import exceptions, sqlalchemy as ps
 class PinotTestCase(TestCase):
     def setUp(self) -> None:
         self.dialect = ps.PinotDialect(server='http://localhost:9000')
+
+
+class _FakeAsyncPinotCursor:
+    def __init__(self):
+        self.description = [("col1", None, None, None, None, None, None)]
+        self.rowcount = 1
+        self.arraysize = 1
+        self.closed = False
+        self._rows = collections.deque([[1]])
+
+    async def execute(self, operation, parameters=None):
+        return self
+
+    def fetchone(self):
+        if self._rows:
+            return self._rows.popleft()
+        return None
+
+    def fetchmany(self, size=None):
+        size = size or self.arraysize
+        return [self._rows.popleft() for _ in range(min(size, len(self._rows)))]
+
+    def fetchall(self):
+        rows = list(self._rows)
+        self._rows.clear()
+        return rows
+
+    async def close(self):
+        self.closed = True
+
+    def __iter__(self):
+        return iter(self._rows)
+
+
+class _FakeAsyncPinotConnection:
+    def __init__(self):
+        self.closed = False
+        self._cursors = []
+
+    def cursor(self):
+        cursor = _FakeAsyncPinotCursor()
+        self._cursors.append(cursor)
+        return cursor
+
+    async def close(self):
+        self.closed = True
+        for cursor in self._cursors:
+            if not cursor.closed:
+                await cursor.close()
+
+
+class PinotAsyncDialectTest(PinotTestCase):
+    def test_marks_dialect_as_async(self):
+        self.assertTrue(ps.PinotAsyncDialect.is_async)
+        self.assertEqual(ps.PinotAsyncDialect.driver, "rest_async")
+
+    @patch("pinotdb.sqlalchemy.pinotdb.connect_async")
+    def test_works_with_create_async_engine(self, connect_async):
+        registry.register("pinot.async", "pinotdb.sqlalchemy", "PinotAsyncDialect")
+
+        fake_connections = []
+
+        def _connect_async(*args, **kwargs):
+            connection = _FakeAsyncPinotConnection()
+            fake_connections.append((args, kwargs, connection))
+            return connection
+
+        connect_async.side_effect = _connect_async
+
+        engine = create_async_engine(
+            "pinot+async://localhost:8000/query/sql"
+            "?controller=http://localhost:9000/"
+        )
+
+        async def _run_query():
+            async with engine.connect() as connection:
+                result = await connection.execute(text("SELECT 1"))
+                self.assertEqual(result.scalar_one(), 1)
+            await engine.dispose()
+
+        asyncio.run(_run_query())
+
+        self.assertGreaterEqual(connect_async.call_count, 1)
+        kwargs = fake_connections[0][1]
+        self.assertEqual(kwargs["host"], "localhost")
+        self.assertEqual(kwargs["port"], 8000)
+        self.assertEqual(kwargs["path"], "query/sql")
+        self.assertEqual(kwargs["scheme"], "http")
 
 
 class PinotDialectTest(PinotTestCase):
