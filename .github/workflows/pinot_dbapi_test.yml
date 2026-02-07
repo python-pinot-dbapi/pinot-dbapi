@@ -19,6 +19,10 @@
 
 name: Pinot DB API Tests
 
+permissions:
+  contents: read
+  id-token: write
+
 on:
   push:
     branches:
@@ -93,7 +97,7 @@ jobs:
             make test-unit
           fi
       - name: Upload Coverage to Codecov
-        if: ${{ matrix.python-version == '3.12' && env.CODECOV_TOKEN != '' }}
+        if: ${{ matrix.python-version == '3.12' }}
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
@@ -101,7 +105,5 @@ jobs:
           slug: python-pinot-dbapi/pinot-dbapi
           name: pinot-dbapi-unit-coverage
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           verbose: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
