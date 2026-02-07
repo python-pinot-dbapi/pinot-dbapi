@@ -27,6 +27,9 @@ test-integration: check-pinot
 test-unit:
 	poetry run pytest -s tests/unit/
 
+coverage:
+	poetry run pytest -s tests/unit/ --cov-report=term-missing --cov-report=xml:coverage.xml --cov-report=json:coverage.json
+
 lint:
 	poetry run flake8 pinotdb
 
@@ -39,4 +42,4 @@ poetry:
 run-pinot:
 	docker run --name pinot-quickstart -p 2123:2123 -p 9000:9000 -p 8000:8000 apachepinot/pinot:latest QuickStart -type MULTI_STAGE
 
-.PHONY: init test test-integration test-unit lint lock poetry run-pinot check-pinot
+.PHONY: init test test-integration test-unit coverage lint lock poetry run-pinot check-pinot

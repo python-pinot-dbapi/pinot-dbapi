@@ -299,6 +299,7 @@ After you make sure you have them installed, test the library:
 1. Run the Pinot QuickStart (for integration tests): `$ make run-pinot`
 2. On a separate shell, run: `$ make init`
 3. Then: `$ make test`
+4. To generate unit test coverage reports: `$ make coverage`
 
 ## Release
 
