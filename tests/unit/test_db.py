@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from typing import Any, Dict, Optional
 from unittest import TestCase
 from unittest.mock import ANY, MagicMock, patch
@@ -495,6 +496,27 @@ class CursorTest(TestCase):
                 'queryOptions': 'something;useMultistageEngine=true'},
             headers=ANY)
 
+    def test_sends_correlation_id_header(self):
+        cursor = self.create_cursor()
+
+        cursor.execute('some statement')
+
+        headers = cursor.session.post.call_args.kwargs['headers']
+        self.assertIn('X-Correlation-Id', headers)
+        # Validate the value is a valid UUID
+        uuid.UUID(headers['X-Correlation-Id'])
+
+    def test_sends_unique_correlation_id_per_request(self):
+        cursor = self.create_cursor()
+
+        cursor.execute('some statement')
+        cursor.execute('some statement')
+
+        calls = cursor.session.post.call_args_list
+        id1 = calls[0].kwargs['headers']['X-Correlation-Id']
+        id2 = calls[1].kwargs['headers']['X-Correlation-Id']
+        self.assertNotEqual(id1, id2)
+
     def test_executes_query_with_complex_results(self):
         data = [
             ('age', 'INT', 12),
@@ -941,6 +963,27 @@ class AsyncCursorTest(IsolatedAsyncioTestCase):
             headers=ANY,
             auth=(b'john.doe', b'mypass'),
         )
+
+    async def test_sends_correlation_id_header(self):
+        cursor = self.create_cursor()
+
+        await cursor.execute('some statement')
+
+        headers = cursor.session.post.call_args.kwargs['headers']
+        self.assertIn('X-Correlation-Id', headers)
+        # Validate the value is a valid UUID
+        uuid.UUID(headers['X-Correlation-Id'])
+
+    async def test_sends_unique_correlation_id_per_request(self):
+        cursor = self.create_cursor()
+
+        await cursor.execute('some statement')
+        await cursor.execute('some statement')
+
+        calls = cursor.session.post.call_args_list
+        id1 = calls[0].kwargs['headers']['X-Correlation-Id']
+        id2 = calls[1].kwargs['headers']['X-Correlation-Id']
+        self.assertNotEqual(id1, id2)
 
     async def test_exposes_query_stats(self):
         cursor = self.create_cursor(
