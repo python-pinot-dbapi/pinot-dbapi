@@ -1,7 +1,7 @@
 import datetime
 from typing import Any, Dict, Optional
 from unittest import TestCase
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import httpx
 
@@ -442,7 +442,8 @@ class CursorTest(TestCase):
         results = list(iter(cursor))
         self.assertEqual(results, [])
         cursor.session.post.assert_called_once_with(
-            'http://localhost:8099/query/sql', json={'sql': 'some statement'})
+            'http://localhost:8099/query/sql', json={'sql': 'some statement'},
+            headers=ANY)
 
     def test_executes_query_within_session_with_query_options(self):
         cursor = self.create_cursor()
@@ -453,7 +454,8 @@ class CursorTest(TestCase):
         self.assertEqual(results, [])
         cursor.session.post.assert_called_once_with(
             'http://localhost:8099/query/sql', json={
-                'sql': 'some statement', 'queryOptions': {'foo': 'bar'}})
+                'sql': 'some statement', 'queryOptions': {'foo': 'bar'}},
+            headers=ANY)
 
     def test_executes_query_preserving_types(self):
         cursor = self.create_cursor(preserve_types=True)
@@ -464,7 +466,8 @@ class CursorTest(TestCase):
         self.assertEqual(results, [])
         cursor.session.post.assert_called_once_with(
             'http://localhost:8099/query/sql',
-            json={'sql': "some statement OPTION(preserveType='true')"})
+            json={'sql': "some statement OPTION(preserveType='true')"},
+            headers=ANY)
 
     def test_executes_query_using_multistage_engine(self):
         cursor = self.create_cursor(use_multistage_engine=True)
@@ -476,7 +479,8 @@ class CursorTest(TestCase):
         cursor.session.post.assert_called_once_with(
             'http://localhost:8099/query/sql', json={
                 'sql': 'some statement',
-                'queryOptions': 'useMultistageEngine=true'})
+                'queryOptions': 'useMultistageEngine=true'},
+            headers=ANY)
 
     def test_executes_query_using_multistage_engine_plus_options(self):
         cursor = self.create_cursor(use_multistage_engine=True)
@@ -488,7 +492,8 @@ class CursorTest(TestCase):
         cursor.session.post.assert_called_once_with(
             'http://localhost:8099/query/sql', json={
                 'sql': 'some statement',
-                'queryOptions': 'something;useMultistageEngine=true'})
+                'queryOptions': 'something;useMultistageEngine=true'},
+            headers=ANY)
 
     def test_executes_query_with_complex_results(self):
         data = [
@@ -569,6 +574,7 @@ class CursorTest(TestCase):
         cursor.session.post.assert_called_once_with(
             'http://localhost:8099/query/sql',
             json={'sql': 'some statement'},
+            headers=ANY,
             auth=(b'john.doe', b'mypass'),
         )
 
@@ -932,6 +938,7 @@ class AsyncCursorTest(IsolatedAsyncioTestCase):
         cursor.session.post.assert_called_once_with(
             'http://localhost:8099/query/sql',
             json={'sql': 'some statement'},
+            headers=ANY,
             auth=(b'john.doe', b'mypass'),
         )
 

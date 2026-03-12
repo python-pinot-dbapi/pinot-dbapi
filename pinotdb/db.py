@@ -5,6 +5,7 @@ from typing import Any
 import ciso8601
 import json
 import logging
+import uuid
 from collections import namedtuple
 from enum import Enum
 from pprint import pformat
@@ -527,16 +528,19 @@ class Cursor:
         query = self.finalize_query_payload(
             operation, parameters, queryOptions)
 
+        correlation_id = str(uuid.uuid4())
         if self.auth and self.auth._username and self.auth._password:
             r = self.session.post(
                 self.url,
                 json=query,
+                headers={"X-Correlation-Id": correlation_id},
                 auth=(self.auth._username, self.auth._password),
                 **kwargs)
         else:
             r = self.session.post(
                 self.url,
                 json=query,
+                headers={"X-Correlation-Id": correlation_id},
                 **kwargs)
 
         return self.normalize_query_response(query, r)
@@ -628,16 +632,19 @@ class AsyncCursor(Cursor):
         query = self.finalize_query_payload(
             operation, parameters, queryOptions)
 
+        correlation_id = str(uuid.uuid4())
         if self.auth and self.auth._username and self.auth._password:
             r = await self.session.post(
                 self.url,
                 json=query,
+                headers={"X-Correlation-Id": correlation_id},
                 auth=(self.auth._username, self.auth._password),
                 **kwargs)
         else:
             r = await self.session.post(
                 self.url,
                 json=query,
+                headers={"X-Correlation-Id": correlation_id},
                 **kwargs)
 
         return self.normalize_query_response(query, r)
