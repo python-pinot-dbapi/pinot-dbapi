@@ -355,41 +355,75 @@ After you make sure you have them installed, test the library:
 
 ## Release
 
-### Prepare release credential
+The preferred release path is the GitHub Actions workflow:
+[Pinotdb Pypi Publisher](https://github.com/startreedata/pinot-dbapi/actions/workflows/pinotdb-pypi-publisher.yml).
 
-First, configure your credentials for the release. You can simply attach your PyPI API token to the Poetry tool:
+It will:
+
+1. Check out the selected branch.
+2. Bump `pyproject.toml` to the requested version.
+3. Generate a changelog from the previous `release-*` tag.
+4. Commit the version bump and create the `release-<version>` tag.
+5. Create a GitHub Release.
+6. Build and publish `pinotdb` to [PyPI](https://pypi.org/project/pinotdb/).
+
+### GitHub Actions release workflow
+
+Before using the workflow, make sure the repository has these GitHub Actions secrets:
+
+1. `RELEASE_PAT`
+2. `PYPI_USERNAME`
+3. `PYPI_PASSWORD`
+
+If you are publishing with a PyPI API token, set:
+
+1. `PYPI_USERNAME=__token__`
+2. `PYPI_PASSWORD=<your_api_token_generated_from_pypi.org>`
+
+Then open the workflow page and click `Run workflow`.
+
+Inputs:
+
+1. `ref`: Branch to release from. Defaults to `master`.
+2. `version`: Exact version to release, for example `9.0.1`.
+
+Notes:
+
+1. `ref` must be a branch name on `origin`. The workflow commits the version bump back to that branch before creating the release tag.
+2. The release tag format is `release-<version>`.
+3. `RELEASE_PAT` must be able to push to the protected release branch, for example `master`.
+
+### Manual release
+
+If you need to release manually instead of using GitHub Actions, you can still do it locally.
+
+If you are using a PyPI API token with Poetry:
 
 ```
 $ poetry config pypi-token.pypi <your_api_token_generated_from_pypi.org>
 ```
 
-You should only need to do this once to set up your poetry config for the release.
-Alternatively, you can also use username and password:
+Or publish with username and password:
 
 ```
 $ poetry publish --username=<your_username> --password='<your_password>'
 ```
 
-### Build and release a new Pinot DB-API to PyPI
+Then run the release steps:
 
-Bump the project to whichever next version is more suitable according to
-[SemVer](https://semver.org/). For example, to bump the patch version automatically,
-simply ran the following command:
-
-```
-$ poetry version patch
-```
-
-Run to build the distribution:
-
-```
+```bash
+$ BRANCH=master
+$ VERSION=<new_version>
+$ poetry version "$VERSION"
+$ PINOTDB_VERSION=$(poetry version -s)
 $ poetry build
-```
-
-Then publish it to [pinotdb in PyPI](https://pypi.org/project/pinotdb/):
-
-```
 $ poetry publish
+$ git add pyproject.toml
+$ git commit -m "Update version to pinotdb ${PINOTDB_VERSION}"
+$ git tag "release-${PINOTDB_VERSION}"
+$ git push origin "HEAD:${BRANCH}"
+$ git push origin "release-${PINOTDB_VERSION}"
+$ gh release create "release-${PINOTDB_VERSION}" \
+    --title "Release release-${PINOTDB_VERSION}" \
+    --generate-notes
 ```
-
-You can also go to Github Action: [Pinotdb Pypi Publisher](https://github.com/python-pinot-dbapi/pinot-dbapi/actions/workflows/pinotdb-pypi-publisher.yml) to click and run the workflow to publish to PYPI.

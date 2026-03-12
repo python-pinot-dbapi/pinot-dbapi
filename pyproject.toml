@@ -6,7 +6,7 @@ authors = ["Beto Dealmeida <beto@dealmeida.net>", "Devesh Agrawal <devesh.agrawa
 license = "MIT"
 readme = "README.md"
 packages = [{include = "pinotdb"}]
-homepage = "https://github.com/python-pinot-dbapi/pinot-dbapi"
+homepage = "https://github.com/startreedata/pinot-dbapi"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4"

@@ -22,45 +22,132 @@ name: Pinotdb Pypi Publisher
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'New PinotDB Release Version'
+      ref:
+        description: 'Branch to release from (default: master)'
         required: false
+        default: 'master'
+        type: string
+      version:
+        description: 'New PinotDB release version (e.g. 9.0.0)'
+        required: true
+        type: string
 
 jobs:
   pinotdb-pypi-publisher:
     runs-on: ubuntu-latest
     name: Pinotdb Pypi Publisher
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
         with:
-          token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_PAT }}
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0
+      - name: Validate release ref
+        run: |
+          REF="${{ github.event.inputs.ref }}"
+          if ! git ls-remote --exit-code --heads origin "$REF" >/dev/null 2>&1; then
+            echo "Ref $REF is not a branch on origin"
+            echo "This workflow creates and pushes a version bump commit, so ref must be a branch name."
+            exit 1
+          fi
+          echo "Releasing from ref: $REF"
+          echo "Commit: $(git rev-parse HEAD)"
+          echo "Message: $(git log -1 --pretty=format:'%s')"
       - name: Set up Python 3.10
         uses: actions/setup-python@v6
         with:
           python-version: "3.10"
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry
+      - name: Bump version and extract release metadata
+        id: release
+        run: |
+          poetry version "${{ github.event.inputs.version }}"
+          PINOTDB_VERSION=$(poetry version -s)
+          RELEASE_TAG="release-${PINOTDB_VERSION}"
+          echo "pinotdb_version=${PINOTDB_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+      - name: Check if release tag already exists
+        run: |
+          TAG="${{ steps.release.outputs.release_tag }}"
+          if git tag -l | grep -qx "$TAG"; then
+            echo "Tag $TAG already exists locally"
+            exit 1
+          fi
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG$"; then
+            echo "Tag $TAG already exists on remote"
+            exit 1
+          fi
+      - name: Generate changelog
+        run: |
+          TAG="${{ steps.release.outputs.release_tag }}"
+          VERSION="${{ steps.release.outputs.pinotdb_version }}"
+          PREVIOUS_TAG=$(git tag -l "release-*" --sort=-version:refname | head -n 1)
+
+          if [ -n "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log --no-merges --pretty=format:"- %s" "$PREVIOUS_TAG..HEAD")
+            COMPARE_URL="https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...$TAG"
+          else
+            CHANGELOG=$(git log --no-merges --pretty=format:"- %s")
+            COMPARE_URL="https://github.com/${{ github.repository }}/commits/$TAG"
+          fi
+
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="- No user-facing changes recorded."
+          fi
+
+          cat > changelog.md << EOF
+          ## What's Changed
+
+          $CHANGELOG
+
+          ## Installation
+
+          \`\`\`bash
+          pip install pinotdb==$VERSION
+          \`\`\`
+
+          **Full Changelog**: $COMPARE_URL
+          EOF
+      - name: Configure git
+        run: |
+          git config --global user.email "dev@pinot.apache.org"
+          git config --global user.name "Apache Pinot Python Library PyPI Release Bot"
+      - name: Commit version bump
+        run: |
+          git add pyproject.toml
+          if git diff --cached --quiet; then
+            echo "No version change detected after poetry version"
+            exit 1
+          fi
+          git commit -m "Update version to pinotdb ${{ steps.release.outputs.pinotdb_version }}"
+      - name: Create release tag
+        run: |
+          git tag "${{ steps.release.outputs.release_tag }}"
+      - name: Push commit and tag
+        run: |
+          git push origin "HEAD:${{ github.event.inputs.ref }}"
+          git push origin "${{ steps.release.outputs.release_tag }}"
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.release_tag }}
+          name: Release ${{ steps.release.outputs.release_tag }}
+          body_path: changelog.md
+          draft: false
+          prerelease: ${{ contains(steps.release.outputs.pinotdb_version, '-') }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
       - name: Publish to PyPI
         env:
-          PERSONAL_GITHUB_USER: ${{ secrets.PERSONAL_GITHUB_USER }}
-          PERSONAL_GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
           PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
           PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |
-          make init
-          if [ -z "${{ github.event.inputs.version }}" ]; then
-            poetry version patch
-          else
-            poetry version ${{ github.event.inputs.version }}
-          fi
-          PINOTDB_VERSION=$(poetry version | cut -d ' ' -f 2)
-          git config --global user.email "dev@pinot.apache.org"
-          git config --global user.name "Apache Pinot Python Library PyPI Release Bot"
-          git add pyproject.toml
-          git commit -m "Update version to pinotdb ${PINOTDB_VERSION}"
-          git tag "release-${PINOTDB_VERSION}"
           poetry build
-          echo "Pushing pinotdb ${PINOTDB_VERSION} to GitHub"
-          git push origin master
-          echo "Pushing pinotdb tag release-${PINOTDB_VERSION} to GitHub"
-          git push origin "release-${PINOTDB_VERSION}"
-          echo "Publishing pinotdb ${PINOTDB_VERSION} to PyPI"
+          echo "Publishing pinotdb ${{ steps.release.outputs.pinotdb_version }} to PyPI"
           poetry publish --username $PYPI_USERNAME --password $PYPI_PASSWORD
